@@ -1,0 +1,89 @@
+# Environment Variables
+# Store sensitive configuration locally, never commit to repo
+.env
+.env.local
+.env.*.local
+.env.*.example
+
+# Operating System Files
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Build and Cache Directories
+# Next.js
+.next/
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Node/npm
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+.cache/
+
+# IDE and Editor Files
+# VS Code
+.vscode/
+*.code-workspace
+
+# JetBrains IDEs
+.idea/
+.DS_Store
+*.iml
+*.iws
+*.ipr
+
+# Vim and Nano
+*.swp
+*.swo
+*~
+.*.swp
+.*.swo
+
+# Logs
+*.log
+logs/
+log/
+*.log.gz
+
+# Test Coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Temporary Files
+*.tmp
+*.bak
+*.backup
+*#
+.#*
+
+# System-specific
+.env.production.local
+.env.test.local
+*.pem
+*.key
+
+# IDE temporary files
+.DS_Store
+.vscode/settings.json
+.vscode/launch.json
+.eslintcache
