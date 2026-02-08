@@ -1,5 +1,4 @@
 {
-  "projectName": "datathon-water-analysis",
   "buildCommand": "echo 'Building static assets...'",
   "outputDirectory": ".",
   "framework": "static",
