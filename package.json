@@ -30,9 +30,7 @@
     "deploy": "vercel deploy --prod",
     "deploy:staging": "vercel deploy"
   },
-  "dependencies": {
-    "note": "External libraries loaded via CDN in HTML files"
-  },
+  "dependencies": {},
   "devDependencies": {
     "http-server": "^14.1.1"
   },
