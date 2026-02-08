@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Texas Water Crisis Analysis - Interactive Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Papa/5.3.0/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        .intro {
+            background: #f0f4ff;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        select, input {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        select:hover, input:hover {
+            border-color: #667eea;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #764ba2;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-title {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .chart {
+            width: 100%;
+            height: 400px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .data-table {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        footer {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            color: #666;
+            margin-top: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .github-link {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #333;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .github-link:hover {
+            background: #000;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💧 Texas Water Crisis Analysis</h1>
+            <p class="subtitle">Interactive Dashboard - TWDB Data Analysis</p>
+            <div class="intro">
+                <p><strong>Project:</strong> TXST Love Data Week 2026 - Analyzing Texas water availability and implications for infrastructure development.</p>
+                <p style="margin-top: 10px;"><strong>Data Source:</strong> Texas Department of Biological Resources (TWDB) State Water Plan 2026</p>
+            </div>
+        </header>
+
+        <div class="controls">
+            <select id="regionSelect">
+                <option value="">All Regions</option>
+            </select>
+
+            <select id="wugTypeSelect">
+                <option value="">All WUG Types</option>
+            </select>
+
+            <input type="number" id="yearSelect" placeholder="Select Year (2020-2070)" min="2020" max="2070" value="2050">
+
+            <button onclick="updateDashboard()">Update Dashboard</button>
+            <button onclick="downloadData()">📥 Download Data</button>
+        </div>
+
+        <div class="info-box">
+            <strong>ℹ️ How to use:</strong> Select a region and water user group type, choose a year, and click "Update Dashboard" to see the data visualization. Hover over charts for detailed information.
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-box">
+                <div class="stat-label">Total Records</div>
+                <div class="stat-value" id="totalRecords">--</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Regions</div>
+                <div class="stat-value" id="totalRegions">--</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">WUG Types</div>
+                <div class="stat-value" id="totalWugTypes">--</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Data Coverage</div>
+                <div class="stat-value" id="dataCoverage">--</div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-box">
+                <div class="chart-title">Demands by Region (2050)</div>
+                <div class="chart" id="demandsChart"></div>
+            </div>
+            <div class="chart-box">
+                <div class="chart-title">Demand Projection Over Time</div>
+                <div class="chart" id="projectionChart"></div>
+            </div>
+        </div>
+
+        <div class="chart-box">
+            <div class="chart-title">Detailed Data Table</div>
+            <div id="dataTable" class="data-table">
+                <div class="loading">Loading data...</div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Texas Water Crisis Analysis - TXST Datathon 2026</p>
+            <p style="font-size: 0.9em; margin-top: 10px;">
+                Data Source: <a href="https://texasstatewaterplan.org/" target="_blank">Texas State Water Plan</a> |
+                <a href="https://www.twdb.texas.gov/" target="_blank">TWDB</a>
+            </p>
+            <a href="https://github.com/yourusername/texas-water-analysis" class="github-link">📂 View on GitHub</a>
+        </footer>
+    </div>
+
+    <script>
+        let allData = {
+            demands: [],
+            existing: [],
+            needs: [],
+            population: [],
+            strategies: []
+        };
+
+        // Initialize dashboard
+        async function initDashboard() {
+            try {
+                // Load data from public folder (you'll need to add this)
+                await loadCSVFiles();
+                populateSelects();
+                updateDashboard();
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        async function loadCSVFiles() {
+            // These will be loaded from the public folder
+            const files = ['demands.csv', 'existing.csv', 'needs.csv', 'population.csv', 'strategies.csv'];
+
+            for (const file of files) {
+                try {
+                    const response = await fetch(`/data/${file}`);
+                    const text = await response.text();
+                    const data = Papa.parse(text, { header: true });
+                    allData[file.replace('.csv', '')] = data.data;
+                } catch (e) {
+                    console.warn(`Could not load ${file}:`, e);
+                }
+            }
+
+            // Update stats
+            if (allData.demands.length > 0) {
+                document.getElementById('totalRecords').textContent = allData.demands.length.toLocaleString();
+                document.getElementById('totalRegions').textContent =
+                    new Set(allData.demands.map(d => d.WugRegion)).size;
+                document.getElementById('totalWugTypes').textContent =
+                    new Set(allData.demands.map(d => d.WugType)).size;
+                document.getElementById('dataCoverage').textContent = '2020-2070';
+            }
+        }
+
+        function populateSelects() {
+            if (allData.demands.length === 0) return;
+
+            const regions = ['All Regions', ...new Set(allData.demands.map(d => d.WugRegion || 'Unknown'))];
+            const wugTypes = ['All WUG Types', ...new Set(allData.demands.map(d => d.WugType || 'Unknown'))];
+
+            const regionSelect = document.getElementById('regionSelect');
+            const wugSelect = document.getElementById('wugTypeSelect');
+
+            regions.forEach(r => {
+                if (r !== 'All Regions') {
+                    const option = document.createElement('option');
+                    option.value = r;
+                    option.textContent = r;
+                    regionSelect.appendChild(option);
+                }
+            });
+
+            wugTypes.forEach(w => {
+                if (w !== 'All WUG Types') {
+                    const option = document.createElement('option');
+                    option.value = w;
+                    option.textContent = w;
+                    wugSelect.appendChild(option);
+                }
+            });
+        }
+
+        function updateDashboard() {
+            if (allData.demands.length === 0) {
+                alert('Data not loaded yet. Please try again.');
+                return;
+            }
+
+            const region = document.getElementById('regionSelect').value;
+            const wugType = document.getElementById('wugTypeSelect').value;
+            const year = document.getElementById('yearSelect').value || '2050';
+
+            let filtered = allData.demands.filter(d =>
+                (!region || d.WugRegion === region) &&
+                (!wugType || d.WugType === wugType)
+            );
+
+            // Update charts
+            updateDemandsChart(filtered, year);
+            updateProjectionChart(filtered);
+            updateDataTable(filtered);
+        }
+
+        function updateDemandsChart(data, year) {
+            const yearCol = `D${year}`;
+            const demands = data
+                .filter(d => d[yearCol])
+                .slice(0, 20)
+                .map(d => ({
+                    entity: d.EntityName,
+                    demand: parseFloat(d[yearCol]) || 0
+                }))
+                .sort((a, b) => b.demand - a.demand);
+
+            const trace = {
+                x: demands.map(d => d.entity),
+                y: demands.map(d => d.demand),
+                type: 'bar',
+                marker: { color: '#667eea' },
+                hovertemplate: '<b>%{x}</b><br>Demand: %{y:.0f} acre-feet<extra></extra>'
+            };
+
+            const layout = {
+                title: `Top 20 Demands - ${year}`,
+                xaxis: { title: 'Entity' },
+                yaxis: { title: 'Demand (acre-feet)' },
+                hovermode: 'closest',
+                margin: { b: 100 }
+            };
+
+            Plotly.newPlot('demandsChart', [trace], layout, { responsive: true });
+        }
+
+        function updateProjectionChart(data) {
+            const yearColumns = ['D2020', 'D2030', 'D2040', 'D2050', 'D2060', 'D2070'];
+            const years = [2020, 2030, 2040, 2050, 2060, 2070];
+
+            // Calculate average demand per year
+            const avgByYear = yearColumns.map((col, i) => {
+                const avg = data
+                    .filter(d => d[col])
+                    .reduce((sum, d) => sum + (parseFloat(d[col]) || 0), 0) / data.length;
+                return avg;
+            });
+
+            const trace = {
+                x: years,
+                y: avgByYear,
+                type: 'scatter',
+                mode: 'lines+markers',
+                line: { color: '#764ba2', width: 3 },
+                marker: { size: 8 },
+                fill: 'tozeroy',
+                hovertemplate: '<b>%{x}</b><br>Avg Demand: %{y:.0f} acre-feet<extra></extra>'
+            };
+
+            const layout = {
+                title: 'Average Demand Projection (2020-2070)',
+                xaxis: { title: 'Year' },
+                yaxis: { title: 'Average Demand (acre-feet)' },
+                hovermode: 'x unified'
+            };
+
+            Plotly.newPlot('projectionChart', [trace], layout, { responsive: true });
+        }
+
+        function updateDataTable(data) {
+            if (data.length === 0) {
+                document.getElementById('dataTable').innerHTML = '<p>No data found for selected filters.</p>';
+                return;
+            }
+
+            const headers = ['Entity Name', 'WUG Type', 'Region', 'County', 'D2020', 'D2050', 'D2070'];
+            let html = '<table><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+
+            data.slice(0, 50).forEach(row => {
+                html += '<tr>' +
+                    `<td>${row.EntityName}</td>` +
+                    `<td>${row.WugType}</td>` +
+                    `<td>${row.WugRegion}</td>` +
+                    `<td>${row.WugCounty}</td>` +
+                    `<td>${row.D2020}</td>` +
+                    `<td>${row.D2050}</td>` +
+                    `<td>${row.D2070}</td>` +
+                    '</tr>';
+            });
+
+            html += '</table>';
+            document.getElementById('dataTable').innerHTML = html;
+        }
+
+        function downloadData() {
+            const year = document.getElementById('yearSelect').value || '2050';
+            const yearCol = `D${year}`;
+
+            let csv = 'EntityName,WugType,Region,County,' + yearCol + '\n';
+            allData.demands.forEach(d => {
+                csv += `${d.EntityName},${d.WugType},${d.WugRegion},${d.WugCounty},${d[yearCol]}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `texas-water-data-${year}.csv`;
+            a.click();
+        }
+
+        // Initialize on load
+        window.addEventListener('load', initDashboard);
+    </script>
+</body>
+</html>
