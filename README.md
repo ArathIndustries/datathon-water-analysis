@@ -1,4 +1,5 @@
 # datathon-water-analysis
+<<<<<<< HEAD
 
 Interactive dashboard analyzing Texas water crisis and forecasting infrastructure viability.
 
@@ -190,3 +191,6 @@ For questions or support:
 - USGS Water Services: https://waterservices.usgs.gov/
 - TPWD Water Resources: https://tpwd.texas.gov/
 - TCEQ Water Quality: https://www.tceq.texas.gov/
+=======
+Interactive dashboard for Texas water crisis analysis
+>>>>>>> d76125a90f0fd3e23892e00ee423c7d1b8ae8817
