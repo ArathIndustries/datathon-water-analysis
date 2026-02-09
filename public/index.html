@@ -7,11 +7,7 @@
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -20,333 +16,176 @@
             min-height: 100vh;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
 
         header {
             background: white;
-            padding: 20px 30px;
+            padding: 16px 24px;
             border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+            flex-wrap: wrap;
         }
 
-        h1 {
-            color: #667eea;
-            margin-bottom: 4px;
-            font-size: 2em;
+        h1 { color: #667eea; font-size: 1.8em; }
+        .subtitle { color: #666; font-size: 0.95em; }
+
+        /* Insight cards */
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 12px;
         }
 
-        .subtitle {
-            color: #666;
-            font-size: 1em;
-            margin: 0;
+        .insight-card {
+            background: white;
+            padding: 14px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
         }
 
+        .insight-value { font-size: 1.8em; font-weight: bold; line-height: 1.2; }
+        .insight-label { font-size: 0.8em; color: #666; margin-top: 2px; }
+
+        /* Controls */
         .controls {
             background: white;
-            padding: 12px 20px;
+            padding: 10px 16px;
             border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 12px;
             display: flex;
-            gap: 12px;
+            gap: 10px;
             flex-wrap: wrap;
             align-items: center;
         }
 
         select, input {
-            padding: 10px;
+            padding: 8px 10px;
             border: 2px solid #ddd;
             border-radius: 5px;
-            font-size: 1em;
+            font-size: 0.95em;
             transition: border-color 0.3s;
         }
 
-        select:hover, input:hover {
-            border-color: #667eea;
-        }
-
-        select:focus, input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
-        }
+        select:hover, input:hover { border-color: #667eea; }
+        select:focus, input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 5px rgba(102,126,234,0.3); }
 
         button {
-            background: #667eea;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1em;
-            transition: background 0.3s;
+            background: #667eea; color: white;
+            padding: 8px 16px; border: none; border-radius: 5px;
+            cursor: pointer; font-size: 0.95em; transition: background 0.3s;
         }
+        button:hover { background: #764ba2; }
 
-        button:hover {
-            background: #764ba2;
-        }
-
-        .charts-grid {
+        /* Dual map grid */
+        .maps-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .chart-box {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .chart-title {
-            font-size: 1.3em;
-            color: #333;
-            margin-bottom: 15px;
-            font-weight: 600;
-        }
-
-        .chart {
-            width: 100%;
-            height: 400px;
-        }
-
-        .insights-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .insight-card {
-            background: white;
-            padding: 16px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-
-        .insight-value {
-            font-size: 1.8em;
-            font-weight: bold;
-            line-height: 1.2;
-        }
-
-        .insight-label {
-            font-size: 0.85em;
-            color: #666;
-            margin-top: 4px;
-        }
-
-        .data-table {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-
-        th {
-            background: #f5f5f5;
-            font-weight: 600;
-            color: #333;
-        }
-
-        tr:hover {
-            background: #f9f9f9;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-
-        footer {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            color: #666;
-            margin-top: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .github-link {
-            display: inline-block;
-            margin-top: 10px;
-            padding: 10px 20px;
-            background: #333;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background 0.3s;
-        }
-
-        .github-link:hover {
-            background: #000;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
         }
 
         .map-section {
             background: white;
-            padding: 20px;
+            padding: 16px;
             border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
-        .map-controls {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-
-        .map-controls label {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .map-wrapper {
-            position: relative;
-            overflow: hidden;
-        }
-
-        #countyMap {
-            width: 100%;
-        }
-
-        .map-legend {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 10px;
-            font-size: 0.85em;
-            color: #555;
-        }
-
-        .map-legend .legend-label {
-            white-space: nowrap;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .map-legend .legend-bar {
-            flex: 1;
-            height: 14px;
-            border-radius: 3px;
-            border: 1px solid #ccc;
-            min-width: 120px;
-        }
-
-        .map-legend .legend-ticks {
-            flex: 1;
+        .map-header {
             display: flex;
             justify-content: space-between;
-            font-size: 0.85em;
-            color: #777;
-            min-width: 120px;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .map-title { font-size: 1.1em; font-weight: 600; color: #333; }
+        .map-wrapper { position: relative; overflow: hidden; }
+
+        .map-legend {
+            display: flex; align-items: center; gap: 8px;
+            margin-top: 8px; font-size: 0.8em; color: #555;
+        }
+        .map-legend .legend-label { white-space: nowrap; font-weight: 600; color: #333; }
+        .map-legend .legend-bar { flex: 1; height: 12px; border-radius: 3px; border: 1px solid #ccc; min-width: 80px; }
+        .map-legend .legend-ticks { flex: 1; display: flex; justify-content: space-between; font-size: 0.85em; color: #777; min-width: 80px; }
+
+        /* Charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .chart-box {
+            background: white; padding: 16px;
+            border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .chart-title { font-size: 1.1em; color: #333; margin-bottom: 12px; font-weight: 600; }
+        .chart { width: 100%; height: 380px; }
+
+        /* Table */
+        .data-table {
+            background: white; padding: 16px;
+            border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f5f5f5; font-weight: 600; color: #333; }
+        tr:hover { background: #f9f9f9; }
+
+        .loading { text-align: center; padding: 20px; color: #666; }
+
+        footer {
+            background: white; padding: 16px; border-radius: 10px;
+            text-align: center; color: #666; margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .github-link {
+            display: inline-block; margin-top: 8px; padding: 8px 16px;
+            background: #333; color: white; text-decoration: none;
+            border-radius: 5px; transition: background 0.3s;
+        }
+        .github-link:hover { background: #000; }
+
+        /* Mobile */
+        @media (max-width: 900px) {
+            .maps-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 768px) {
-            .container {
-                padding: 10px;
-            }
+            .container { padding: 10px; }
+            header { padding: 12px 16px; margin-bottom: 8px; flex-direction: column; gap: 4px; }
+            h1 { font-size: 1.4em; }
 
-            header {
-                padding: 15px;
-                margin-bottom: 15px;
-            }
+            .insights-grid { grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
+            .insight-card { padding: 10px; display: flex; align-items: center; gap: 10px; text-align: left; }
+            .insight-value { font-size: 1.3em; white-space: nowrap; }
+            .insight-label { margin-top: 0; }
 
-            h1 {
-                font-size: 1.5em;
-            }
+            .controls { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; margin-bottom: 8px; }
+            .maps-grid { grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
+            .map-section { padding: 10px; }
 
-            .subtitle {
-                font-size: 0.95em;
-            }
-
-            .controls {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 10px;
-                padding: 15px;
-                margin-bottom: 15px;
-            }
-
-            .insights-grid {
-                grid-template-columns: 1fr;
-                gap: 10px;
-                margin-bottom: 10px;
-            }
-
-            .insight-card {
-                padding: 10px;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                text-align: left;
-            }
-
-            .insight-value {
-                font-size: 1.3em;
-                white-space: nowrap;
-            }
-
-            .insight-label {
-                margin-top: 0;
-            }
-
-            .map-section {
-                padding: 12px;
-                margin-bottom: 15px;
-            }
-
-            .charts-grid {
-                grid-template-columns: 1fr;
-                gap: 15px;
-                margin-bottom: 15px;
-            }
-
-            .chart {
-                height: 300px;
-            }
-
-            .chart-box {
-                padding: 12px;
-            }
-
-            .data-table {
-                padding: 10px;
-            }
-
-            th, td {
-                padding: 6px 8px;
-                font-size: 0.85em;
-            }
-
-            footer {
-                padding: 15px;
-                font-size: 0.9em;
-            }
+            .charts-grid { grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
+            .chart { height: 280px; }
+            .chart-box { padding: 10px; }
+            .data-table { padding: 10px; }
+            th, td { padding: 6px 8px; font-size: 0.85em; }
+            footer { padding: 12px; font-size: 0.9em; }
         }
     </style>
 </head>
@@ -356,6 +195,21 @@
             <h1>Texas Water Crisis Analysis</h1>
             <p class="subtitle">TWDB State Water Plan 2026 &mdash; TXST Love Data Week</p>
         </header>
+
+        <div class="insights-grid">
+            <div class="insight-card">
+                <div class="insight-value" id="insightDeficit" style="color:#e31a1c;">--</div>
+                <div class="insight-label" id="insightDeficitLabel">Statewide Water Deficit (acre-ft)</div>
+            </div>
+            <div class="insight-card">
+                <div class="insight-value" id="insightCounties" style="color:#e65100;">--</div>
+                <div class="insight-label" id="insightCountiesLabel">Counties with Unmet Needs</div>
+            </div>
+            <div class="insight-card">
+                <div class="insight-value" id="insightPopulation" style="color:#54278f;">--</div>
+                <div class="insight-label" id="insightPopLabel">People in At-Risk Counties</div>
+            </div>
+        </div>
 
         <div class="controls">
             <select id="regionSelect" onchange="updateDashboard()">
@@ -375,92 +229,103 @@
                 <option value="2070">2070</option>
             </select>
 
+            <select id="mapMetricSelect" onchange="updateMaps()">
+                <option value="needs">Color: Water Needs</option>
+                <option value="demand">Color: Water Demand</option>
+                <option value="population">Color: Population</option>
+                <option value="supply">Color: Existing Supply</option>
+            </select>
+
             <button onclick="downloadData()">Export CSV</button>
         </div>
 
-        <div class="insights-grid">
-            <div class="insight-card">
-                <div class="insight-value" id="insightDeficit" style="color:#e31a1c;">--</div>
-                <div class="insight-label">Statewide Water Deficit (acre-ft)</div>
+        <div class="maps-grid">
+            <div class="map-section">
+                <div class="map-header">
+                    <span class="map-title" id="regionalMapTitle">Regional Overview</span>
+                </div>
+                <div class="map-wrapper"><div id="regionalMap"></div></div>
+                <div class="map-legend">
+                    <span class="legend-label" id="regLegendLabel">--</span>
+                    <div class="legend-bar" id="regLegendBar"></div>
+                </div>
+                <div class="map-legend" style="margin-top:2px;">
+                    <span class="legend-label" style="visibility:hidden;" id="regLegendSpacer">--</span>
+                    <div class="legend-ticks" id="regLegendTicks"></div>
+                </div>
             </div>
-            <div class="insight-card">
-                <div class="insight-value" id="insightCounties" style="color:#e65100;">--</div>
-                <div class="insight-label">Counties with Unmet Needs</div>
-            </div>
-            <div class="insight-card">
-                <div class="insight-value" id="insightPopulation" style="color:#54278f;">--</div>
-                <div class="insight-label">People in At-Risk Counties</div>
-            </div>
-        </div>
 
-        <div class="map-section">
-            <div class="chart-title">Interactive County Map</div>
-            <div class="map-controls">
-                <label for="mapMetricSelect">Color by:</label>
-                <select id="mapMetricSelect" onchange="updateCountyMap()">
-                    <option value="needs">Water Needs (acre-ft)</option>
-                    <option value="demand">Water Demand (acre-ft)</option>
-                    <option value="population">Population</option>
-                    <option value="supply">Existing Supply (acre-ft)</option>
-                </select>
-            </div>
-            <div class="map-wrapper">
-                <div id="countyMap"></div>
-            </div>
-            <div class="map-legend" id="mapLegend">
-                <span class="legend-label" id="legendLabel">Water Needs (ac-ft)</span>
-                <div class="legend-bar" id="legendBar"></div>
-            </div>
-            <div class="map-legend" style="margin-top:2px;">
-                <span class="legend-label" style="visibility:hidden;" id="legendSpacer">Water Needs (ac-ft)</span>
-                <div class="legend-ticks" id="legendTicks"></div>
+            <div class="map-section">
+                <div class="map-header">
+                    <span class="map-title" id="countyMapTitle">County Detail</span>
+                </div>
+                <div class="map-wrapper"><div id="countyMap"></div></div>
+                <div class="map-legend">
+                    <span class="legend-label" id="ctyLegendLabel">--</span>
+                    <div class="legend-bar" id="ctyLegendBar"></div>
+                </div>
+                <div class="map-legend" style="margin-top:2px;">
+                    <span class="legend-label" style="visibility:hidden;" id="ctyLegendSpacer">--</span>
+                    <div class="legend-ticks" id="ctyLegendTicks"></div>
+                </div>
             </div>
         </div>
 
         <div class="charts-grid">
             <div class="chart-box">
-                <div class="chart-title">Water Balance by Region</div>
+                <div class="chart-title" id="balanceChartTitle">Water Balance by Region</div>
                 <div class="chart" id="demandsChart"></div>
             </div>
             <div class="chart-box">
-                <div class="chart-title">Statewide Projection (2020-2070)</div>
+                <div class="chart-title" id="projectionChartTitle">Statewide Projection (2020-2070)</div>
                 <div class="chart" id="projectionChart"></div>
             </div>
         </div>
 
-        <div class="chart-box" style="margin-bottom: 30px;">
-            <div class="chart-title">Top Counties at Risk</div>
+        <div class="chart-box" style="margin-bottom: 20px;">
+            <div class="chart-title" id="riskTableTitle">Top Counties at Risk</div>
             <div id="dataTable" class="data-table">
                 <div class="loading">Loading data...</div>
             </div>
         </div>
 
         <footer>
-            <p>Texas Water Crisis Analysis - TXST Datathon 2026</p>
-            <p style="font-size: 0.9em; margin-top: 10px;">
-                Data Source: <a href="https://texasstatewaterplan.org/" target="_blank">Texas State Water Plan</a> |
+            <p>Texas Water Crisis Analysis &mdash; TXST Datathon 2026</p>
+            <p style="font-size: 0.9em; margin-top: 8px;">
+                Data: <a href="https://texasstatewaterplan.org/" target="_blank">Texas State Water Plan</a> |
                 <a href="https://www.twdb.texas.gov/" target="_blank">TWDB</a>
             </p>
-            <a href="https://github.com/ArathIndustries/datathon-water-analysis" class="github-link">📂 View on GitHub</a>
+            <a href="https://github.com/ArathIndustries/datathon-water-analysis" class="github-link">View on GitHub</a>
         </footer>
     </div>
 
     <script>
-        let allData = {
-            demands: [],
-            existing: [],
-            needs: [],
-            population: [],
-            strategies: []
+        let allData = { demands: [], existing: [], needs: [], population: [], strategies: [] };
+        let txGeojson = null;
+        let countyToRegion = {};   // "TRAVIS" -> "G"
+        let regionBounds = {};     // "G" -> { minLon, maxLon, minLat, maxLat }
+        const TX_CENTER = { lon: -99.5, lat: 31.5 };
+
+        // --- Color configs ---
+        const colorConfigs = {
+            needs:      { label: 'Water Needs (ac-ft)', scale: [[0,'#ffffcc'],[0.25,'#fed976'],[0.5,'#fd8d3c'],[0.75,'#e31a1c'],[1,'#800026']] },
+            demand:     { label: 'Water Demand (ac-ft)', scale: [[0,'#eff3ff'],[0.25,'#bdd7e7'],[0.5,'#6baed6'],[0.75,'#2171b5'],[1,'#08306b']] },
+            population: { label: 'Population', scale: [[0,'#f2f0f7'],[0.25,'#cbc9e2'],[0.5,'#9e9ac8'],[0.75,'#756bb1'],[1,'#54278f']] },
+            supply:     { label: 'Existing Supply (ac-ft)', scale: [[0,'#edf8e9'],[0.25,'#bae4b3'],[0.5,'#74c476'],[0.75,'#238b45'],[1,'#00441b']] }
         };
 
-        let txGeojson = null;
-        let countyFipsLookup = {}; // { "TRAVIS": "48453", ... }
+        const sectorLabels = {
+            'MUNICIPAL': 'Municipal (Cities)', 'IRRIGATION': 'Irrigation (Agriculture)',
+            'LIVESTOCK': 'Livestock (Ranching)', 'MANUFACTURING': 'Manufacturing',
+            'MINING': 'Mining (Oil/Gas)', 'STEAM ELECTRIC POWER': 'Power Generation'
+        };
 
-        // Initialize dashboard
+        // --- Init ---
         async function initDashboard() {
             try {
                 await Promise.all([loadCSVFiles(), loadTexasGeojson()]);
+                buildCountyRegionMap();
+                buildRegionBounds();
                 populateSelects();
                 updateDashboard();
             } catch (error) {
@@ -469,113 +334,282 @@
         }
 
         async function loadCSVFiles() {
-            if (typeof Papa === 'undefined') {
-                showError('PapaParse library failed to load. Check your internet connection or try disabling tracking prevention for this site.');
-                return;
-            }
-
+            if (typeof Papa === 'undefined') { showError('PapaParse failed to load.'); return; }
             const files = ['demands.csv', 'existing.csv', 'needs.csv', 'population.csv', 'strategies.csv'];
-            const errors = [];
-
             for (const file of files) {
                 try {
-                    const response = await fetch(`data/${file}`);
-                    if (!response.ok) {
-                        errors.push(`${file}: HTTP ${response.status}`);
-                        continue;
-                    }
-                    const text = await response.text();
-                    const result = Papa.parse(text, { header: true, skipEmptyLines: true });
-                    allData[file.replace('.csv', '')] = result.data;
-                } catch (e) {
-                    errors.push(`${file}: ${e.message}`);
-                }
+                    const resp = await fetch(`data/${file}`);
+                    if (!resp.ok) continue;
+                    const text = await resp.text();
+                    allData[file.replace('.csv', '')] = Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+                } catch (e) { console.warn(`Could not load ${file}:`, e); }
             }
-
-            if (errors.length > 0) {
-                console.warn('Data loading errors:', errors);
-            }
-
             if (allData.demands.length === 0) {
-                showError('Could not load data files. If opening this file directly, you need to use a local server instead. See console for details.');
+                showError('Could not load data files. Use a local server instead of opening the file directly.');
             }
         }
 
         async function loadTexasGeojson() {
             try {
-                const response = await fetch('data/tx-counties.geojson');
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                txGeojson = await response.json();
-                // Build county name -> FIPS lookup
-                txGeojson.features.forEach(f => {
-                    countyFipsLookup[f.properties.NAME.toUpperCase()] = f.id;
-                });
-            } catch (e) {
-                console.warn('Could not load Texas GeoJSON:', e);
-            }
+                const resp = await fetch('data/tx-counties.geojson');
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                txGeojson = await resp.json();
+            } catch (e) { console.warn('Could not load GeoJSON:', e); }
         }
 
-        function aggregateByCounty(dataArray, prefix, year) {
+        function buildCountyRegionMap() {
+            // Build county -> region lookup from demand data
+            allData.demands.forEach(row => {
+                const c = (row.WugCounty || '').toUpperCase();
+                if (c && row.WugRegion) countyToRegion[c] = row.WugRegion;
+            });
+        }
+
+        function buildRegionBounds() {
+            if (!txGeojson) return;
+            // Compute bounding box per region from GeoJSON coordinates
+            txGeojson.features.forEach(f => {
+                const county = f.properties.NAME.toUpperCase();
+                const region = countyToRegion[county];
+                if (!region) return;
+
+                if (!regionBounds[region]) {
+                    regionBounds[region] = { minLon: 180, maxLon: -180, minLat: 90, maxLat: -90 };
+                }
+                const b = regionBounds[region];
+
+                // Walk all coordinates in the geometry
+                const walkCoords = (coords) => {
+                    if (typeof coords[0] === 'number') {
+                        b.minLon = Math.min(b.minLon, coords[0]);
+                        b.maxLon = Math.max(b.maxLon, coords[0]);
+                        b.minLat = Math.min(b.minLat, coords[1]);
+                        b.maxLat = Math.max(b.maxLat, coords[1]);
+                    } else {
+                        coords.forEach(walkCoords);
+                    }
+                };
+                walkCoords(f.geometry.coordinates);
+            });
+        }
+
+        function getRegionView(region) {
+            if (!region || !regionBounds[region]) {
+                return { center: TX_CENTER, zoom: 4.8 };
+            }
+            const b = regionBounds[region];
+            const cLon = (b.minLon + b.maxLon) / 2;
+            const cLat = (b.minLat + b.maxLat) / 2;
+            const spanLon = b.maxLon - b.minLon;
+            const spanLat = b.maxLat - b.minLat;
+            const span = Math.max(spanLon, spanLat);
+            // Rough zoom: smaller span = more zoom
+            const zoom = span < 1 ? 8 : span < 2 ? 7 : span < 3 ? 6.5 : span < 4 ? 6 : 5.5;
+            return { center: { lon: cLon, lat: cLat }, zoom };
+        }
+
+        function showError(message) {
+            const el = document.getElementById('dataTable');
+            if (el) el.innerHTML = `<div style="color:#d32f2f;padding:20px;background:#ffebee;border-radius:5px;border-left:4px solid #d32f2f;"><strong>Error:</strong> ${message}</div>`;
+        }
+
+        function populateSelects() {
+            if (allData.demands.length === 0) return;
+            const regions = [...new Set(allData.demands.map(d => d.WugRegion))].filter(Boolean).sort();
+            const wugTypes = [...new Set(allData.demands.map(d => d.WugType))].filter(Boolean).sort();
+
+            const regionSelect = document.getElementById('regionSelect');
+            const wugSelect = document.getElementById('wugTypeSelect');
+
+            regions.forEach(r => {
+                const o = document.createElement('option');
+                o.value = r; o.textContent = `Region ${r}`;
+                regionSelect.appendChild(o);
+            });
+            wugTypes.forEach(w => {
+                const o = document.createElement('option');
+                o.value = w; o.textContent = sectorLabels[w] || w;
+                wugSelect.appendChild(o);
+            });
+        }
+
+        // --- Aggregation helpers ---
+        function aggregateByCounty(dataArray, prefix, year, regionFilter) {
             const col = `${prefix}${year}`;
             const byCounty = {};
             dataArray.forEach(row => {
+                if (regionFilter && row.WugRegion !== regionFilter) return;
                 const county = (row.WugCounty || '').toUpperCase();
                 if (!county) return;
-                const val = parseFloat(row[col]) || 0;
-                if (!byCounty[county]) {
-                    byCounty[county] = { total: 0, region: row.WugRegion || '' };
-                }
-                byCounty[county].total += val;
+                if (!byCounty[county]) byCounty[county] = { total: 0, region: row.WugRegion || '' };
+                byCounty[county].total += parseFloat(row[col]) || 0;
             });
             return byCounty;
         }
 
+        function aggregateByRegion(dataArray, prefix, year) {
+            const col = `${prefix}${year}`;
+            const byRegion = {};
+            dataArray.forEach(row => {
+                const r = row.WugRegion;
+                if (!r) return;
+                byRegion[r] = (byRegion[r] || 0) + (parseFloat(row[col]) || 0);
+            });
+            return byRegion;
+        }
+
+        // --- Main update ---
+        function updateDashboard() {
+            if (allData.demands.length === 0) return;
+            const year = document.getElementById('yearSelect').value || '2050';
+            const region = document.getElementById('regionSelect').value;
+
+            updateInsights(year, region);
+            updateMaps();
+            updateRegionalBalance(year, region);
+            updateStatewideProjection(region);
+            updateRiskTable(year, region);
+        }
+
+        function updateMaps() {
+            updateRegionalMap();
+            updateCountyMap();
+        }
+
+        // --- Insights ---
+        function updateInsights(year, region) {
+            const prefix = region ? `Region ${region} ` : 'Statewide ';
+            let totalNeeds = 0;
+            const countyNeeds = {}, countyPop = {};
+
+            allData.needs.forEach(row => {
+                if (region && row.WugRegion !== region) return;
+                totalNeeds += parseFloat(row[`N${year}`]) || 0;
+                const c = row.WugCounty;
+                if (c) countyNeeds[c] = (countyNeeds[c] || 0) + (parseFloat(row[`N${year}`]) || 0);
+            });
+            allData.population.forEach(row => {
+                if (region && row.WugRegion !== region) return;
+                const c = row.WugCounty;
+                if (c) countyPop[c] = (countyPop[c] || 0) + (parseFloat(row[`P${year}`]) || 0);
+            });
+
+            let countiesInNeed = 0, popAtRisk = 0;
+            const totalCounties = Object.keys(countyPop).length;
+            for (const c in countyNeeds) {
+                if (countyNeeds[c] > 0) { countiesInNeed++; popAtRisk += countyPop[c] || 0; }
+            }
+
+            document.getElementById('insightDeficit').textContent = Math.round(totalNeeds).toLocaleString();
+            document.getElementById('insightDeficitLabel').textContent = `${prefix}Water Deficit (acre-ft)`;
+            document.getElementById('insightCounties').textContent = `${countiesInNeed} of ${totalCounties}`;
+            document.getElementById('insightCountiesLabel').textContent = region ? `Counties with Unmet Needs in Region ${region}` : 'Counties with Unmet Needs';
+            document.getElementById('insightPopulation').textContent = popAtRisk >= 1e6 ? (popAtRisk / 1e6).toFixed(1) + 'M' : Math.round(popAtRisk).toLocaleString();
+            document.getElementById('insightPopLabel').textContent = `People in At-Risk Counties`;
+        }
+
+        // --- Regional Map (aggregated by region, always shows all Texas) ---
+        function updateRegionalMap() {
+            if (!txGeojson || allData.demands.length === 0) return;
+
+            const year = document.getElementById('yearSelect').value || '2050';
+            const metric = document.getElementById('mapMetricSelect').value;
+            const region = document.getElementById('regionSelect').value;
+            const cfg = colorConfigs[metric];
+
+            const prefixMap = { needs: 'N', demand: 'D', population: 'P', supply: 'WS' };
+            const regionAgg = aggregateByRegion(
+                metric === 'needs' ? allData.needs : metric === 'demand' ? allData.demands :
+                metric === 'population' ? allData.population : allData.existing,
+                prefixMap[metric], year
+            );
+
+            // Color each county by its region's aggregate value
+            const locations = [], rawValues = [], hoverTexts = [];
+
+            txGeojson.features.forEach(f => {
+                const county = f.properties.NAME.toUpperCase();
+                const fips = f.id;
+                const r = countyToRegion[county] || '';
+                locations.push(fips);
+                rawValues.push(regionAgg[r] || 0);
+                hoverTexts.push(`<b>Region ${r}</b><br>${cfg.label}: ${Math.round(regionAgg[r] || 0).toLocaleString()}`);
+            });
+
+            const logValues = rawValues.map(v => Math.log10(v + 1));
+            const maxLog = Math.max(...logValues) || 1;
+            const { ticktext } = buildTicks(maxLog, 5);
+
+            // Dim non-selected regions when a region is selected
+            const opacities = region
+                ? txGeojson.features.map(f => countyToRegion[f.properties.NAME.toUpperCase()] === region ? 1 : 0.3)
+                : txGeojson.features.map(() => 1);
+
+            const trace = {
+                type: 'choroplethmapbox', geojson: txGeojson,
+                locations, z: logValues, text: hoverTexts, hoverinfo: 'text',
+                colorscale: cfg.scale, zmin: 0, zmax: maxLog, showscale: false,
+                marker: {
+                    line: { width: 0.5, color: '#444' },
+                    opacity: opacities
+                }
+            };
+
+            const mapEl = document.getElementById('regionalMap');
+            const w = mapEl.parentElement.clientWidth;
+            const h = w < 400 ? 300 : 420;
+
+            const layout = {
+                mapbox: { style: 'open-street-map', center: TX_CENTER, zoom: w < 400 ? 3.8 : 4.5 },
+                margin: { t: 0, b: 0, l: 0, r: 0 }, height: h, autosize: true
+            };
+
+            Plotly.newPlot('regionalMap', [trace], layout, { responsive: true });
+            buildHTMLLegend('reg', cfg, ticktext);
+
+            document.getElementById('regionalMapTitle').textContent =
+                region ? `Regional Overview (Region ${region} highlighted)` : 'Regional Overview';
+        }
+
+        // --- County Map (individual counties, zooms to selected region) ---
         function updateCountyMap() {
             if (!txGeojson || allData.demands.length === 0) return;
 
             const year = document.getElementById('yearSelect').value || '2050';
             const metric = document.getElementById('mapMetricSelect').value;
-
-            // Aggregate all four metrics for hover text
-            const demandAgg = aggregateByCounty(allData.demands, 'D', year);
-            const needsAgg = aggregateByCounty(allData.needs, 'N', year);
-            const popAgg = aggregateByCounty(allData.population, 'P', year);
-            const supplyAgg = aggregateByCounty(allData.existing, 'WS', year);
-
-            // Determine which aggregation drives the color
-            // Scales go light-to-dark: low values = light, high values = dark/intense
-            const colorConfigs = {
-                needs:      { agg: needsAgg, label: 'Water Needs (ac-ft)', scale: [[0,'#ffffcc'],[0.25,'#fed976'],[0.5,'#fd8d3c'],[0.75,'#e31a1c'],[1,'#800026']] },
-                demand:     { agg: demandAgg, label: 'Water Demand (ac-ft)', scale: [[0,'#eff3ff'],[0.25,'#bdd7e7'],[0.5,'#6baed6'],[0.75,'#2171b5'],[1,'#08306b']] },
-                population: { agg: popAgg, label: 'Population', scale: [[0,'#f2f0f7'],[0.25,'#cbc9e2'],[0.5,'#9e9ac8'],[0.75,'#756bb1'],[1,'#54278f']] },
-                supply:     { agg: supplyAgg, label: 'Existing Supply (ac-ft)', scale: [[0,'#edf8e9'],[0.25,'#bae4b3'],[0.5,'#74c476'],[0.75,'#238b45'],[1,'#00441b']] }
-            };
+            const region = document.getElementById('regionSelect').value;
             const cfg = colorConfigs[metric];
 
-            // Collect raw values for all counties, then log-normalize
-            const locations = [];
-            const rawValues = [];
-            const hoverTexts = [];
+            const demandAgg = aggregateByCounty(allData.demands, 'D', year, region);
+            const needsAgg = aggregateByCounty(allData.needs, 'N', year, region);
+            const popAgg = aggregateByCounty(allData.population, 'P', year, region);
+            const supplyAgg = aggregateByCounty(allData.existing, 'WS', year, region);
 
-            txGeojson.features.forEach(f => {
+            const metricAgg = { needs: needsAgg, demand: demandAgg, population: popAgg, supply: supplyAgg }[metric];
+
+            // Filter features to selected region if applicable
+            const features = region
+                ? txGeojson.features.filter(f => countyToRegion[f.properties.NAME.toUpperCase()] === region)
+                : txGeojson.features;
+
+            const filteredGeojson = { type: 'FeatureCollection', features };
+
+            const locations = [], rawValues = [], hoverTexts = [];
+
+            features.forEach(f => {
                 const name = f.properties.NAME.toUpperCase();
-                const fips = f.id;
-                locations.push(fips);
-
-                const colorVal = (cfg.agg[name] || {}).total || 0;
-                rawValues.push(colorVal);
+                locations.push(f.id);
+                rawValues.push((metricAgg[name] || {}).total || 0);
 
                 const demand = (demandAgg[name] || {}).total || 0;
                 const needs = (needsAgg[name] || {}).total || 0;
                 const pop = (popAgg[name] || {}).total || 0;
                 const supply = (supplyAgg[name] || {}).total || 0;
-                const region = (demandAgg[name] || needsAgg[name] || popAgg[name] || supplyAgg[name] || {}).region || 'N/A';
-
-                const displayName = f.properties.NAME;
+                const r = countyToRegion[name] || 'N/A';
 
                 hoverTexts.push(
-                    `<b>${displayName} County</b><br>` +
-                    `Region: ${region}<br>` +
+                    `<b>${f.properties.NAME} County</b><br>` +
+                    `Region: ${r}<br>` +
                     `Population: ${pop.toLocaleString()}<br>` +
                     `Demand: ${demand.toLocaleString()} ac-ft<br>` +
                     `Supply: ${supply.toLocaleString()} ac-ft<br>` +
@@ -583,340 +617,155 @@
                 );
             });
 
-            // Log-normalize: log10(value + 1) spreads the gradient across orders of magnitude
             const logValues = rawValues.map(v => Math.log10(v + 1));
             const maxLog = Math.max(...logValues) || 1;
-
-            // Build colorbar tick labels that show real values at log-spaced positions
-            const tickCount = 5;
-            const tickvals = [];
-            const ticktext = [];
-            for (let i = 0; i < tickCount; i++) {
-                const logVal = (maxLog * i) / (tickCount - 1);
-                tickvals.push(logVal);
-                const realVal = Math.round(Math.pow(10, logVal) - 1);
-                ticktext.push(realVal.toLocaleString());
-            }
+            const { ticktext } = buildTicks(maxLog, 5);
 
             const trace = {
-                type: 'choroplethmapbox',
-                geojson: txGeojson,
-                locations: locations,
-                z: logValues,
-                text: hoverTexts,
-                hoverinfo: 'text',
-                colorscale: cfg.scale,
-                zmin: 0,
-                zmax: maxLog,
-                showscale: false,
+                type: 'choroplethmapbox', geojson: filteredGeojson,
+                locations, z: logValues, text: hoverTexts, hoverinfo: 'text',
+                colorscale: cfg.scale, zmin: 0, zmax: maxLog, showscale: false,
                 marker: { line: { width: 0.5, color: '#444' } }
             };
 
-            // Compute height from container width — shorter on mobile
+            const view = getRegionView(region);
             const mapEl = document.getElementById('countyMap');
-            const containerWidth = mapEl.parentElement.clientWidth;
-            const mapHeight = containerWidth < 500 ? 350 : 600;
+            const w = mapEl.parentElement.clientWidth;
+            const h = w < 400 ? 300 : 420;
 
             const layout = {
                 mapbox: {
                     style: 'open-street-map',
-                    center: { lon: -99.5, lat: 31.5 },
-                    zoom: containerWidth < 500 ? 4.2 : 4.8
+                    center: view.center,
+                    zoom: w < 400 ? Math.max(view.zoom - 0.8, 3.5) : view.zoom
                 },
-                margin: { t: 0, b: 0, l: 0, r: 0 },
-                height: mapHeight,
-                autosize: true
+                margin: { t: 0, b: 0, l: 0, r: 0 }, height: h, autosize: true
             };
 
             Plotly.newPlot('countyMap', [trace], layout, { responsive: true });
+            buildHTMLLegend('cty', cfg, ticktext);
 
-            // Build custom HTML legend
+            document.getElementById('countyMapTitle').textContent =
+                region ? `County Detail — Region ${region}` : 'County Detail — All Texas';
+        }
+
+        // --- Legend builder ---
+        function buildTicks(maxLog, count) {
+            const ticktext = [];
+            for (let i = 0; i < count; i++) {
+                const logVal = (maxLog * i) / (count - 1);
+                ticktext.push(Math.round(Math.pow(10, logVal) - 1).toLocaleString());
+            }
+            return { ticktext };
+        }
+
+        function buildHTMLLegend(prefix, cfg, ticktext) {
             const colors = cfg.scale.map(s => s[1]);
-            const gradientStr = `linear-gradient(to right, ${colors.join(', ')})`;
-            document.getElementById('legendBar').style.background = gradientStr;
-            document.getElementById('legendLabel').textContent = cfg.label;
-            document.getElementById('legendSpacer').textContent = cfg.label;
-
-            const ticksEl = document.getElementById('legendTicks');
+            document.getElementById(`${prefix}LegendBar`).style.background = `linear-gradient(to right, ${colors.join(', ')})`;
+            document.getElementById(`${prefix}LegendLabel`).textContent = cfg.label;
+            document.getElementById(`${prefix}LegendSpacer`).textContent = cfg.label;
+            const ticksEl = document.getElementById(`${prefix}LegendTicks`);
             ticksEl.innerHTML = '';
-            for (let i = 0; i < tickCount; i++) {
-                const span = document.createElement('span');
-                span.textContent = ticktext[i];
-                ticksEl.appendChild(span);
-            }
+            ticktext.forEach(t => { const s = document.createElement('span'); s.textContent = t; ticksEl.appendChild(s); });
         }
 
-        function showError(message) {
-            const el = document.getElementById('dataTable');
-            if (el) {
-                el.innerHTML = `<div style="color:#d32f2f;padding:20px;background:#ffebee;border-radius:5px;border-left:4px solid #d32f2f;"><strong>Error:</strong> ${message}</div>`;
-            }
-        }
-
-        const sectorLabels = {
-            'MUNICIPAL': 'Municipal (Cities)',
-            'IRRIGATION': 'Irrigation (Agriculture)',
-            'LIVESTOCK': 'Livestock (Ranching)',
-            'MANUFACTURING': 'Manufacturing',
-            'MINING': 'Mining (Oil/Gas)',
-            'STEAM ELECTRIC POWER': 'Power Generation'
-        };
-
-        function populateSelects() {
-            if (allData.demands.length === 0) return;
-
-            const regions = [...new Set(allData.demands.map(d => d.WugRegion || 'Unknown'))].sort();
-            const wugTypes = [...new Set(allData.demands.map(d => d.WugType || 'Unknown'))].sort();
-
-            const regionSelect = document.getElementById('regionSelect');
-            const wugSelect = document.getElementById('wugTypeSelect');
-
-            regions.forEach(r => {
-                const option = document.createElement('option');
-                option.value = r;
-                option.textContent = `Region ${r}`;
-                regionSelect.appendChild(option);
-            });
-
-            wugTypes.forEach(w => {
-                const option = document.createElement('option');
-                option.value = w;
-                option.textContent = sectorLabels[w] || w;
-                wugSelect.appendChild(option);
-            });
-        }
-
-        function updateDashboard() {
-            if (allData.demands.length === 0) return;
-
-            const year = document.getElementById('yearSelect').value || '2050';
-
-            updateInsights(year);
-            updateRegionalBalance(year);
-            updateStatewideProjection();
-            updateRiskTable(year);
-            updateCountyMap();
-        }
-
-        function updateInsights(year) {
-            // Statewide deficit
-            let totalNeeds = 0;
-            allData.needs.forEach(row => { totalNeeds += parseFloat(row[`N${year}`]) || 0; });
-
-            // Counties with unmet needs & population at risk
-            const countyNeeds = {};
-            const countyPop = {};
-            allData.needs.forEach(row => {
-                const c = row.WugCounty;
-                if (!c) return;
-                countyNeeds[c] = (countyNeeds[c] || 0) + (parseFloat(row[`N${year}`]) || 0);
-            });
-            allData.population.forEach(row => {
-                const c = row.WugCounty;
-                if (!c) return;
-                countyPop[c] = (countyPop[c] || 0) + (parseFloat(row[`P${year}`]) || 0);
-            });
-
-            let countiesInNeed = 0;
-            let popAtRisk = 0;
-            for (const c in countyNeeds) {
-                if (countyNeeds[c] > 0) {
-                    countiesInNeed++;
-                    popAtRisk += countyPop[c] || 0;
-                }
-            }
-
-            document.getElementById('insightDeficit').textContent = Math.round(totalNeeds).toLocaleString();
-            document.getElementById('insightCounties').textContent = `${countiesInNeed} of 254`;
-            document.getElementById('insightPopulation').textContent =
-                popAtRisk >= 1e6 ? (popAtRisk / 1e6).toFixed(1) + 'M' : Math.round(popAtRisk).toLocaleString();
-        }
-
-        // Shared Plotly config for both charts
+        // --- Charts ---
         const chartConfig = {
-            responsive: true,
-            scrollZoom: true,
-            displayModeBar: true,
+            responsive: true, scrollZoom: true, displayModeBar: true,
             modeBarButtonsToRemove: ['select2d', 'lasso2d'],
-            modeBarButtonsToAdd: [{
-                name: 'Reset view',
-                icon: Plotly.Icons.home,
-                click: function(gd) { Plotly.relayout(gd, { 'xaxis.autorange': true, 'yaxis.autorange': true }); }
-            }],
             displaylogo: false
         };
 
-        function updateRegionalBalance(year) {
-            // Aggregate demand, supply, and needs by region
-            const regions = [...new Set(allData.demands.map(d => d.WugRegion))].sort();
-            const demandByRegion = {};
-            const supplyByRegion = {};
-            const needsByRegion = {};
+        function updateRegionalBalance(year, region) {
+            const regions = region ? [region] : [...new Set(allData.demands.map(d => d.WugRegion))].filter(Boolean).sort();
+            const demandByR = {}, supplyByR = {}, needsByR = {};
+            regions.forEach(r => { demandByR[r] = 0; supplyByR[r] = 0; needsByR[r] = 0; });
 
-            regions.forEach(r => { demandByRegion[r] = 0; supplyByRegion[r] = 0; needsByRegion[r] = 0; });
-
-            allData.demands.forEach(row => {
-                demandByRegion[row.WugRegion] = (demandByRegion[row.WugRegion] || 0) + (parseFloat(row[`D${year}`]) || 0);
-            });
-            allData.existing.forEach(row => {
-                supplyByRegion[row.WugRegion] = (supplyByRegion[row.WugRegion] || 0) + (parseFloat(row[`WS${year}`]) || 0);
-            });
-            allData.needs.forEach(row => {
-                needsByRegion[row.WugRegion] = (needsByRegion[row.WugRegion] || 0) + (parseFloat(row[`N${year}`]) || 0);
-            });
+            allData.demands.forEach(row => { if (regions.includes(row.WugRegion)) demandByR[row.WugRegion] += parseFloat(row[`D${year}`]) || 0; });
+            allData.existing.forEach(row => { if (regions.includes(row.WugRegion)) supplyByR[row.WugRegion] += parseFloat(row[`WS${year}`]) || 0; });
+            allData.needs.forEach(row => { if (regions.includes(row.WugRegion)) needsByR[row.WugRegion] += parseFloat(row[`N${year}`]) || 0; });
 
             const traces = [
-                {
-                    x: regions, y: regions.map(r => demandByRegion[r]),
-                    name: 'Demand', type: 'bar',
-                    marker: { color: '#2171b5' },
-                    hovertemplate: '<b>Region %{x}</b><br>Demand: %{y:,.0f} ac-ft<extra></extra>'
-                },
-                {
-                    x: regions, y: regions.map(r => supplyByRegion[r]),
-                    name: 'Supply', type: 'bar',
-                    marker: { color: '#238b45' },
-                    hovertemplate: '<b>Region %{x}</b><br>Supply: %{y:,.0f} ac-ft<extra></extra>'
-                },
-                {
-                    x: regions, y: regions.map(r => needsByRegion[r]),
-                    name: 'Unmet Need', type: 'bar',
-                    marker: { color: '#e31a1c' },
-                    hovertemplate: '<b>Region %{x}</b><br>Unmet Need: %{y:,.0f} ac-ft<extra></extra>'
-                }
+                { x: regions, y: regions.map(r => demandByR[r]), name: 'Demand', type: 'bar', marker: { color: '#2171b5' }, hovertemplate: '<b>Region %{x}</b><br>Demand: %{y:,.0f} ac-ft<extra></extra>' },
+                { x: regions, y: regions.map(r => supplyByR[r]), name: 'Supply', type: 'bar', marker: { color: '#238b45' }, hovertemplate: '<b>Region %{x}</b><br>Supply: %{y:,.0f} ac-ft<extra></extra>' },
+                { x: regions, y: regions.map(r => needsByR[r]), name: 'Unmet Need', type: 'bar', marker: { color: '#e31a1c' }, hovertemplate: '<b>Region %{x}</b><br>Unmet Need: %{y:,.0f} ac-ft<extra></extra>' }
             ];
 
-            const layout = {
-                barmode: 'group',
-                xaxis: { title: 'Planning Region' },
-                yaxis: { title: 'Acre-Feet' },
-                legend: { orientation: 'h', y: -0.2 },
-                hovermode: 'x unified',
-                margin: { t: 10, b: 80 }
-            };
-
+            const layout = { barmode: 'group', xaxis: { title: 'Planning Region' }, yaxis: { title: 'Acre-Feet' }, legend: { orientation: 'h', y: -0.2 }, hovermode: 'x unified', margin: { t: 10, b: 80 } };
             Plotly.newPlot('demandsChart', traces, layout, chartConfig);
+            document.getElementById('balanceChartTitle').textContent = region ? `Water Balance — Region ${region}` : 'Water Balance by Region';
         }
 
-        function updateStatewideProjection() {
+        function updateStatewideProjection(region) {
             const years = [2020, 2030, 2040, 2050, 2060, 2070];
-
-            const sumByYear = (dataArray, prefix) => years.map(y => {
+            const sumByYear = (arr, prefix) => years.map(y => {
                 const col = `${prefix}${y}`;
-                return dataArray.reduce((sum, row) => sum + (parseFloat(row[col]) || 0), 0);
+                return arr.filter(r => !region || r.WugRegion === region).reduce((s, r) => s + (parseFloat(r[col]) || 0), 0);
             });
 
-            const totalDemand = sumByYear(allData.demands, 'D');
-            const totalSupply = sumByYear(allData.existing, 'WS');
-            const totalNeeds = sumByYear(allData.needs, 'N');
-
             const traces = [
-                {
-                    x: years, y: totalDemand, name: 'Total Demand',
-                    type: 'scatter', mode: 'lines+markers',
-                    line: { color: '#2171b5', width: 3 }, marker: { size: 8 },
-                    hovertemplate: '<b>%{x}</b><br>Demand: %{y:,.0f} ac-ft<extra></extra>'
-                },
-                {
-                    x: years, y: totalSupply, name: 'Existing Supply',
-                    type: 'scatter', mode: 'lines+markers',
-                    line: { color: '#238b45', width: 3 }, marker: { size: 8 },
-                    hovertemplate: '<b>%{x}</b><br>Supply: %{y:,.0f} ac-ft<extra></extra>'
-                },
-                {
-                    x: years, y: totalNeeds, name: 'Unmet Need',
-                    type: 'scatter', mode: 'lines+markers',
-                    line: { color: '#e31a1c', width: 3, dash: 'dash' }, marker: { size: 8 },
-                    fill: 'tozeroy', fillcolor: 'rgba(227,26,28,0.1)',
-                    hovertemplate: '<b>%{x}</b><br>Unmet Need: %{y:,.0f} ac-ft<extra></extra>'
-                }
+                { x: years, y: sumByYear(allData.demands, 'D'), name: 'Total Demand', type: 'scatter', mode: 'lines+markers', line: { color: '#2171b5', width: 3 }, marker: { size: 8 }, hovertemplate: '<b>%{x}</b><br>Demand: %{y:,.0f} ac-ft<extra></extra>' },
+                { x: years, y: sumByYear(allData.existing, 'WS'), name: 'Existing Supply', type: 'scatter', mode: 'lines+markers', line: { color: '#238b45', width: 3 }, marker: { size: 8 }, hovertemplate: '<b>%{x}</b><br>Supply: %{y:,.0f} ac-ft<extra></extra>' },
+                { x: years, y: sumByYear(allData.needs, 'N'), name: 'Unmet Need', type: 'scatter', mode: 'lines+markers', line: { color: '#e31a1c', width: 3, dash: 'dash' }, marker: { size: 8 }, fill: 'tozeroy', fillcolor: 'rgba(227,26,28,0.1)', hovertemplate: '<b>%{x}</b><br>Unmet Need: %{y:,.0f} ac-ft<extra></extra>' }
             ];
 
-            const layout = {
-                xaxis: { title: 'Year', dtick: 10 },
-                yaxis: { title: 'Acre-Feet' },
-                legend: { orientation: 'h', y: -0.2 },
-                hovermode: 'x unified',
-                margin: { t: 10, b: 80 }
-            };
-
+            const layout = { xaxis: { title: 'Year', dtick: 10 }, yaxis: { title: 'Acre-Feet' }, legend: { orientation: 'h', y: -0.2 }, hovermode: 'x unified', margin: { t: 10, b: 80 } };
             Plotly.newPlot('projectionChart', traces, layout, chartConfig);
+            document.getElementById('projectionChartTitle').textContent = region ? `Projection — Region ${region} (2020-2070)` : 'Statewide Projection (2020-2070)';
         }
 
-        function updateRiskTable(year) {
-            // Aggregate by county: population, demand, supply, needs
+        function updateRiskTable(year, region) {
             const counties = {};
-            const addTo = (dataArray, prefix, field) => {
-                dataArray.forEach(row => {
+            const addTo = (arr, prefix, field) => {
+                arr.forEach(row => {
+                    if (region && row.WugRegion !== region) return;
                     const c = row.WugCounty;
                     if (!c) return;
                     if (!counties[c]) counties[c] = { county: c, region: row.WugRegion, pop: 0, demand: 0, supply: 0, needs: 0 };
                     counties[c][field] += parseFloat(row[`${prefix}${year}`]) || 0;
                 });
             };
-
             addTo(allData.demands, 'D', 'demand');
             addTo(allData.population, 'P', 'pop');
             addTo(allData.existing, 'WS', 'supply');
             addTo(allData.needs, 'N', 'needs');
 
-            // Sort by needs descending, take top 25
-            const sorted = Object.values(counties)
-                .filter(c => c.needs > 0)
-                .sort((a, b) => b.needs - a.needs)
-                .slice(0, 25);
+            const sorted = Object.values(counties).filter(c => c.needs > 0).sort((a, b) => b.needs - a.needs).slice(0, 25);
 
             if (sorted.length === 0) {
-                document.getElementById('dataTable').innerHTML = '<p style="padding:10px;color:#666;">No counties with unmet water needs for this year/filter.</p>';
+                document.getElementById('dataTable').innerHTML = '<p style="padding:10px;color:#666;">No counties with unmet water needs for this selection.</p>';
                 return;
             }
 
             const fmt = n => Math.round(n).toLocaleString();
-
-            let html = '<table><tr>' +
-                '<th>#</th><th>County</th><th>Region</th><th>Population</th>' +
-                '<th>Demand</th><th>Supply</th><th>Unmet Need</th><th>Deficit %</th>' +
-                '</tr>';
-
+            let html = '<table><tr><th>#</th><th>County</th><th>Region</th><th>Population</th><th>Demand</th><th>Supply</th><th>Unmet Need</th><th>Deficit %</th></tr>';
             sorted.forEach((c, i) => {
-                const deficitPct = c.demand > 0 ? ((c.needs / c.demand) * 100).toFixed(1) : '0.0';
-                const severity = deficitPct >= 50 ? 'color:#b71c1c;font-weight:bold' :
-                                 deficitPct >= 25 ? 'color:#e65100;font-weight:bold' : 'color:#333';
-                html += '<tr>' +
-                    `<td>${i + 1}</td>` +
-                    `<td><strong>${c.county}</strong></td>` +
-                    `<td>${c.region}</td>` +
-                    `<td>${fmt(c.pop)}</td>` +
-                    `<td>${fmt(c.demand)}</td>` +
-                    `<td>${fmt(c.supply)}</td>` +
-                    `<td style="${severity}">${fmt(c.needs)}</td>` +
-                    `<td style="${severity}">${deficitPct}%</td>` +
-                    '</tr>';
+                const pct = c.demand > 0 ? ((c.needs / c.demand) * 100).toFixed(1) : '0.0';
+                const sev = pct >= 50 ? 'color:#b71c1c;font-weight:bold' : pct >= 25 ? 'color:#e65100;font-weight:bold' : 'color:#333';
+                html += `<tr><td>${i+1}</td><td><strong>${c.county}</strong></td><td>${c.region}</td><td>${fmt(c.pop)}</td><td>${fmt(c.demand)}</td><td>${fmt(c.supply)}</td><td style="${sev}">${fmt(c.needs)}</td><td style="${sev}">${pct}%</td></tr>`;
             });
-
             html += '</table>';
             document.getElementById('dataTable').innerHTML = html;
+            document.getElementById('riskTableTitle').textContent = region ? `Top Counties at Risk — Region ${region}` : 'Top Counties at Risk';
         }
 
         function downloadData() {
             const year = document.getElementById('yearSelect').value || '2050';
+            const region = document.getElementById('regionSelect').value;
             const yearCol = `D${year}`;
-
             const q = v => `"${String(v || '').replace(/"/g, '""')}"`;
             let csv = 'EntityName,WugType,Region,County,' + yearCol + '\n';
             allData.demands.forEach(d => {
+                if (region && d.WugRegion !== region) return;
                 csv += `${q(d.EntityName)},${q(d.WugType)},${q(d.WugRegion)},${q(d.WugCounty)},${d[yearCol] || 0}\n`;
             });
-
             const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `texas-water-data-${year}.csv`;
+            a.href = window.URL.createObjectURL(blob);
+            a.download = `texas-water-data-${region || 'all'}-${year}.csv`;
             a.click();
         }
 
-        // Initialize on load
         window.addEventListener('load', initDashboard);
     </script>
 </body>
