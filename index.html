@@ -83,19 +83,12 @@
         }
         button:hover { background: #764ba2; }
 
-        /* Dual map grid */
-        .maps-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-
         .map-section {
             background: white;
             padding: 16px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 12px;
         }
 
         .map-header {
@@ -162,10 +155,6 @@
         .github-link:hover { background: #000; }
 
         /* Mobile */
-        @media (max-width: 900px) {
-            .maps-grid { grid-template-columns: 1fr; }
-        }
-
         @media (max-width: 768px) {
             .container { padding: 10px; }
             header { padding: 12px 16px; margin-bottom: 8px; flex-direction: column; gap: 4px; }
@@ -177,8 +166,7 @@
             .insight-label { margin-top: 0; }
 
             .controls { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; margin-bottom: 8px; }
-            .maps-grid { grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
-            .map-section { padding: 10px; }
+            .map-section { padding: 10px; margin-bottom: 8px; }
 
             .charts-grid { grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px; }
             .chart { height: 280px; }
@@ -229,7 +217,7 @@
                 <option value="2070">2070</option>
             </select>
 
-            <select id="mapMetricSelect" onchange="updateMaps()">
+            <select id="mapMetricSelect" onchange="updateCountyMap()">
                 <option value="needs">Color: Water Needs</option>
                 <option value="demand">Color: Water Demand</option>
                 <option value="population">Color: Population</option>
@@ -239,35 +227,18 @@
             <button onclick="downloadData()">Export CSV</button>
         </div>
 
-        <div class="maps-grid">
-            <div class="map-section">
-                <div class="map-header">
-                    <span class="map-title" id="regionalMapTitle">Regional Overview</span>
-                </div>
-                <div class="map-wrapper"><div id="regionalMap"></div></div>
-                <div class="map-legend">
-                    <span class="legend-label" id="regLegendLabel">--</span>
-                    <div class="legend-bar" id="regLegendBar"></div>
-                </div>
-                <div class="map-legend" style="margin-top:2px;">
-                    <span class="legend-label" style="visibility:hidden;" id="regLegendSpacer">--</span>
-                    <div class="legend-ticks" id="regLegendTicks"></div>
-                </div>
+        <div class="map-section">
+            <div class="map-header">
+                <span class="map-title" id="countyMapTitle">All Texas — 254 Counties</span>
             </div>
-
-            <div class="map-section">
-                <div class="map-header">
-                    <span class="map-title" id="countyMapTitle">County Detail</span>
-                </div>
-                <div class="map-wrapper"><div id="countyMap"></div></div>
-                <div class="map-legend">
-                    <span class="legend-label" id="ctyLegendLabel">--</span>
-                    <div class="legend-bar" id="ctyLegendBar"></div>
-                </div>
-                <div class="map-legend" style="margin-top:2px;">
-                    <span class="legend-label" style="visibility:hidden;" id="ctyLegendSpacer">--</span>
-                    <div class="legend-ticks" id="ctyLegendTicks"></div>
-                </div>
+            <div class="map-wrapper"><div id="countyMap"></div></div>
+            <div class="map-legend">
+                <span class="legend-label" id="legendLabel">--</span>
+                <div class="legend-bar" id="legendBar"></div>
+            </div>
+            <div class="map-legend" style="margin-top:2px;">
+                <span class="legend-label" style="visibility:hidden;" id="legendSpacer">--</span>
+                <div class="legend-ticks" id="legendTicks"></div>
             </div>
         </div>
 
@@ -447,17 +418,6 @@
             return byCounty;
         }
 
-        function aggregateByRegion(dataArray, prefix, year) {
-            const col = `${prefix}${year}`;
-            const byRegion = {};
-            dataArray.forEach(row => {
-                const r = row.WugRegion;
-                if (!r) return;
-                byRegion[r] = (byRegion[r] || 0) + (parseFloat(row[col]) || 0);
-            });
-            return byRegion;
-        }
-
         // --- Main update ---
         function updateDashboard() {
             if (allData.demands.length === 0) return;
@@ -465,15 +425,10 @@
             const region = document.getElementById('regionSelect').value;
 
             updateInsights(year, region);
-            updateMaps();
+            updateCountyMap();
             updateRegionalBalance(year, region);
             updateStatewideProjection(region);
             updateRiskTable(year, region);
-        }
-
-        function updateMaps() {
-            updateRegionalMap();
-            updateCountyMap();
         }
 
         // --- Insights ---
@@ -508,70 +463,7 @@
             document.getElementById('insightPopLabel').textContent = `People in At-Risk Counties`;
         }
 
-        // --- Regional Map (aggregated by region, always shows all Texas) ---
-        function updateRegionalMap() {
-            if (!txGeojson || allData.demands.length === 0) return;
-
-            const year = document.getElementById('yearSelect').value || '2050';
-            const metric = document.getElementById('mapMetricSelect').value;
-            const region = document.getElementById('regionSelect').value;
-            const cfg = colorConfigs[metric];
-
-            const prefixMap = { needs: 'N', demand: 'D', population: 'P', supply: 'WS' };
-            const regionAgg = aggregateByRegion(
-                metric === 'needs' ? allData.needs : metric === 'demand' ? allData.demands :
-                metric === 'population' ? allData.population : allData.existing,
-                prefixMap[metric], year
-            );
-
-            // Color each county by its region's aggregate value
-            const locations = [], rawValues = [], hoverTexts = [];
-
-            txGeojson.features.forEach(f => {
-                const county = f.properties.NAME.toUpperCase();
-                const fips = f.id;
-                const r = countyToRegion[county] || '';
-                locations.push(fips);
-                rawValues.push(regionAgg[r] || 0);
-                hoverTexts.push(`<b>Region ${r}</b><br>${cfg.label}: ${Math.round(regionAgg[r] || 0).toLocaleString()}`);
-            });
-
-            const logValues = rawValues.map(v => Math.log10(v + 1));
-            const maxLog = Math.max(...logValues) || 1;
-            const { ticktext } = buildTicks(maxLog, 5);
-
-            // Dim non-selected regions when a region is selected
-            const opacities = region
-                ? txGeojson.features.map(f => countyToRegion[f.properties.NAME.toUpperCase()] === region ? 1 : 0.3)
-                : txGeojson.features.map(() => 1);
-
-            const trace = {
-                type: 'choroplethmapbox', geojson: txGeojson,
-                locations, z: logValues, text: hoverTexts, hoverinfo: 'text',
-                colorscale: cfg.scale, zmin: 0, zmax: maxLog, showscale: false,
-                marker: {
-                    line: { width: 0.5, color: '#444' },
-                    opacity: opacities
-                }
-            };
-
-            const mapEl = document.getElementById('regionalMap');
-            const w = mapEl.parentElement.clientWidth;
-            const h = w < 400 ? 300 : 420;
-
-            const layout = {
-                mapbox: { style: 'open-street-map', center: TX_CENTER, zoom: w < 400 ? 3.8 : 4.5 },
-                margin: { t: 0, b: 0, l: 0, r: 0 }, height: h, autosize: true
-            };
-
-            Plotly.newPlot('regionalMap', [trace], layout, { responsive: true });
-            buildHTMLLegend('reg', cfg, ticktext);
-
-            document.getElementById('regionalMapTitle').textContent =
-                region ? `Regional Overview (Region ${region} highlighted)` : 'Regional Overview';
-        }
-
-        // --- County Map (individual counties, zooms to selected region) ---
+        // --- County Map (single map, zooms to region when selected) ---
         function updateCountyMap() {
             if (!txGeojson || allData.demands.length === 0) return;
 
@@ -631,7 +523,7 @@
             const view = getRegionView(region);
             const mapEl = document.getElementById('countyMap');
             const w = mapEl.parentElement.clientWidth;
-            const h = w < 400 ? 300 : 420;
+            const h = w < 500 ? 350 : 550;
 
             const layout = {
                 mapbox: {
@@ -643,10 +535,11 @@
             };
 
             Plotly.newPlot('countyMap', [trace], layout, { responsive: true });
-            buildHTMLLegend('cty', cfg, ticktext);
+            buildHTMLLegend(cfg, ticktext);
 
+            const numCounties = features.length;
             document.getElementById('countyMapTitle').textContent =
-                region ? `County Detail — Region ${region}` : 'County Detail — All Texas';
+                region ? `Region ${region} — ${numCounties} Counties` : `All Texas — 254 Counties`;
         }
 
         // --- Legend builder ---
@@ -659,12 +552,12 @@
             return { ticktext };
         }
 
-        function buildHTMLLegend(prefix, cfg, ticktext) {
+        function buildHTMLLegend(cfg, ticktext) {
             const colors = cfg.scale.map(s => s[1]);
-            document.getElementById(`${prefix}LegendBar`).style.background = `linear-gradient(to right, ${colors.join(', ')})`;
-            document.getElementById(`${prefix}LegendLabel`).textContent = cfg.label;
-            document.getElementById(`${prefix}LegendSpacer`).textContent = cfg.label;
-            const ticksEl = document.getElementById(`${prefix}LegendTicks`);
+            document.getElementById('legendBar').style.background = `linear-gradient(to right, ${colors.join(', ')})`;
+            document.getElementById('legendLabel').textContent = cfg.label;
+            document.getElementById('legendSpacer').textContent = cfg.label;
+            const ticksEl = document.getElementById('legendTicks');
             ticksEl.innerHTML = '';
             ticktext.forEach(t => { const s = document.createElement('span'); s.textContent = t; ticksEl.appendChild(s); });
         }
