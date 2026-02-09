@@ -249,17 +249,86 @@
         }
 
         @media (max-width: 768px) {
-            .charts-grid {
-                grid-template-columns: 1fr;
+            .container {
+                padding: 10px;
+            }
+
+            header {
+                padding: 15px;
+                margin-bottom: 15px;
             }
 
             h1 {
-                font-size: 1.8em;
+                font-size: 1.5em;
+            }
+
+            .subtitle {
+                font-size: 0.95em;
             }
 
             .controls {
                 flex-direction: column;
                 align-items: stretch;
+                gap: 10px;
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+
+            .stat-box {
+                padding: 12px;
+            }
+
+            .stat-value {
+                font-size: 1.4em;
+            }
+
+            .map-section {
+                padding: 12px;
+                margin-bottom: 15px;
+            }
+
+            #countyMap {
+                height: 350px;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+                margin-bottom: 15px;
+            }
+
+            .chart {
+                height: 300px;
+            }
+
+            .chart-box {
+                padding: 12px;
+            }
+
+            .data-table {
+                padding: 10px;
+            }
+
+            th, td {
+                padding: 6px 8px;
+                font-size: 0.85em;
+            }
+
+            .info-box {
+                padding: 10px;
+                font-size: 0.9em;
+                margin-bottom: 15px;
+            }
+
+            footer {
+                padding: 15px;
+                font-size: 0.9em;
             }
         }
     </style>
@@ -467,17 +536,18 @@
             const supplyAgg = aggregateByCounty(allData.existing, 'WS', year);
 
             // Determine which aggregation drives the color
+            // Scales go light-to-dark: low values = light, high values = dark/intense
             const colorConfigs = {
-                needs:      { agg: needsAgg, label: 'Water Needs', scale: 'YlOrRd' },
-                demand:     { agg: demandAgg, label: 'Water Demand', scale: 'Blues' },
-                population: { agg: popAgg, label: 'Population', scale: 'Purples' },
-                supply:     { agg: supplyAgg, label: 'Existing Supply', scale: 'Greens' }
+                needs:      { agg: needsAgg, label: 'Water Needs (ac-ft)', scale: [[0,'#ffffcc'],[0.25,'#fed976'],[0.5,'#fd8d3c'],[0.75,'#e31a1c'],[1,'#800026']] },
+                demand:     { agg: demandAgg, label: 'Water Demand (ac-ft)', scale: [[0,'#eff3ff'],[0.25,'#bdd7e7'],[0.5,'#6baed6'],[0.75,'#2171b5'],[1,'#08306b']] },
+                population: { agg: popAgg, label: 'Population', scale: [[0,'#f2f0f7'],[0.25,'#cbc9e2'],[0.5,'#9e9ac8'],[0.75,'#756bb1'],[1,'#54278f']] },
+                supply:     { agg: supplyAgg, label: 'Existing Supply (ac-ft)', scale: [[0,'#edf8e9'],[0.25,'#bae4b3'],[0.5,'#74c476'],[0.75,'#238b45'],[1,'#00441b']] }
             };
             const cfg = colorConfigs[metric];
 
-            // Build arrays aligned to GeoJSON features
+            // Collect raw values for all counties, then log-normalize
             const locations = [];
-            const zValues = [];
+            const rawValues = [];
             const hoverTexts = [];
 
             txGeojson.features.forEach(f => {
@@ -486,7 +556,7 @@
                 locations.push(fips);
 
                 const colorVal = (cfg.agg[name] || {}).total || 0;
-                zValues.push(colorVal);
+                rawValues.push(colorVal);
 
                 const demand = (demandAgg[name] || {}).total || 0;
                 const needs = (needsAgg[name] || {}).total || 0;
@@ -494,7 +564,6 @@
                 const supply = (supplyAgg[name] || {}).total || 0;
                 const region = (demandAgg[name] || needsAgg[name] || popAgg[name] || supplyAgg[name] || {}).region || 'N/A';
 
-                // Title-case the county name
                 const displayName = f.properties.NAME;
 
                 hoverTexts.push(
@@ -507,20 +576,39 @@
                 );
             });
 
+            // Log-normalize: log10(value + 1) spreads the gradient across orders of magnitude
+            const logValues = rawValues.map(v => Math.log10(v + 1));
+            const maxLog = Math.max(...logValues) || 1;
+
+            // Build colorbar tick labels that show real values at log-spaced positions
+            const tickCount = 5;
+            const tickvals = [];
+            const ticktext = [];
+            for (let i = 0; i < tickCount; i++) {
+                const logVal = (maxLog * i) / (tickCount - 1);
+                tickvals.push(logVal);
+                const realVal = Math.round(Math.pow(10, logVal) - 1);
+                ticktext.push(realVal.toLocaleString());
+            }
+
             const trace = {
                 type: 'choroplethmapbox',
                 geojson: txGeojson,
                 locations: locations,
-                z: zValues,
+                z: logValues,
                 text: hoverTexts,
                 hoverinfo: 'text',
                 colorscale: cfg.scale,
+                zmin: 0,
+                zmax: maxLog,
                 colorbar: {
                     title: cfg.label,
                     thickness: 15,
-                    len: 0.7
+                    len: 0.7,
+                    tickvals: tickvals,
+                    ticktext: ticktext
                 },
-                marker: { line: { width: 0.5, color: '#666' } }
+                marker: { line: { width: 0.5, color: '#444' } }
             };
 
             const layout = {
