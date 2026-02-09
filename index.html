@@ -222,6 +222,32 @@
             background: #000;
         }
 
+        .map-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .map-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .map-controls label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        #countyMap {
+            width: 100%;
+            height: 600px;
+        }
+
         @media (max-width: 768px) {
             .charts-grid {
                 grid-template-columns: 1fr;
@@ -294,6 +320,20 @@
             </div>
         </div>
 
+        <div class="map-section">
+            <div class="chart-title">Interactive County Map</div>
+            <div class="map-controls">
+                <label for="mapMetricSelect">Color by:</label>
+                <select id="mapMetricSelect" onchange="updateCountyMap()">
+                    <option value="needs">Water Needs (acre-ft)</option>
+                    <option value="demand">Water Demand (acre-ft)</option>
+                    <option value="population">Population</option>
+                    <option value="supply">Existing Supply (acre-ft)</option>
+                </select>
+            </div>
+            <div id="countyMap"></div>
+        </div>
+
         <div class="charts-grid">
             <div class="chart-box">
                 <div class="chart-title">Demands by Region (2050)</div>
@@ -331,11 +371,13 @@
             strategies: []
         };
 
+        let txGeojson = null;
+        let countyFipsLookup = {}; // { "TRAVIS": "48453", ... }
+
         // Initialize dashboard
         async function initDashboard() {
             try {
-                // Load data from public folder (you'll need to add this)
-                await loadCSVFiles();
+                await Promise.all([loadCSVFiles(), loadTexasGeojson()]);
                 populateSelects();
                 updateDashboard();
             } catch (error) {
@@ -381,6 +423,117 @@
             } else {
                 showError('Could not load data files. If opening this file directly, you need to use a local server instead. See console for details.');
             }
+        }
+
+        async function loadTexasGeojson() {
+            try {
+                const response = await fetch('data/tx-counties.geojson');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                txGeojson = await response.json();
+                // Build county name -> FIPS lookup
+                txGeojson.features.forEach(f => {
+                    countyFipsLookup[f.properties.NAME.toUpperCase()] = f.id;
+                });
+            } catch (e) {
+                console.warn('Could not load Texas GeoJSON:', e);
+            }
+        }
+
+        function aggregateByCounty(dataArray, prefix, year) {
+            const col = `${prefix}${year}`;
+            const byCounty = {};
+            dataArray.forEach(row => {
+                const county = (row.WugCounty || '').toUpperCase();
+                if (!county) return;
+                const val = parseFloat(row[col]) || 0;
+                if (!byCounty[county]) {
+                    byCounty[county] = { total: 0, region: row.WugRegion || '' };
+                }
+                byCounty[county].total += val;
+            });
+            return byCounty;
+        }
+
+        function updateCountyMap() {
+            if (!txGeojson || allData.demands.length === 0) return;
+
+            const year = document.getElementById('yearSelect').value || '2050';
+            const metric = document.getElementById('mapMetricSelect').value;
+
+            // Aggregate all four metrics for hover text
+            const demandAgg = aggregateByCounty(allData.demands, 'D', year);
+            const needsAgg = aggregateByCounty(allData.needs, 'N', year);
+            const popAgg = aggregateByCounty(allData.population, 'P', year);
+            const supplyAgg = aggregateByCounty(allData.existing, 'WS', year);
+
+            // Determine which aggregation drives the color
+            const colorConfigs = {
+                needs:      { agg: needsAgg, label: 'Water Needs', scale: 'YlOrRd' },
+                demand:     { agg: demandAgg, label: 'Water Demand', scale: 'Blues' },
+                population: { agg: popAgg, label: 'Population', scale: 'Purples' },
+                supply:     { agg: supplyAgg, label: 'Existing Supply', scale: 'Greens' }
+            };
+            const cfg = colorConfigs[metric];
+
+            // Build arrays aligned to GeoJSON features
+            const locations = [];
+            const zValues = [];
+            const hoverTexts = [];
+
+            txGeojson.features.forEach(f => {
+                const name = f.properties.NAME.toUpperCase();
+                const fips = f.id;
+                locations.push(fips);
+
+                const colorVal = (cfg.agg[name] || {}).total || 0;
+                zValues.push(colorVal);
+
+                const demand = (demandAgg[name] || {}).total || 0;
+                const needs = (needsAgg[name] || {}).total || 0;
+                const pop = (popAgg[name] || {}).total || 0;
+                const supply = (supplyAgg[name] || {}).total || 0;
+                const region = (demandAgg[name] || needsAgg[name] || popAgg[name] || supplyAgg[name] || {}).region || 'N/A';
+
+                // Title-case the county name
+                const displayName = f.properties.NAME;
+
+                hoverTexts.push(
+                    `<b>${displayName} County</b><br>` +
+                    `Region: ${region}<br>` +
+                    `Population: ${pop.toLocaleString()}<br>` +
+                    `Demand: ${demand.toLocaleString()} ac-ft<br>` +
+                    `Supply: ${supply.toLocaleString()} ac-ft<br>` +
+                    `Needs: ${needs.toLocaleString()} ac-ft`
+                );
+            });
+
+            const trace = {
+                type: 'choroplethmapbox',
+                geojson: txGeojson,
+                locations: locations,
+                z: zValues,
+                text: hoverTexts,
+                hoverinfo: 'text',
+                colorscale: cfg.scale,
+                colorbar: {
+                    title: cfg.label,
+                    thickness: 15,
+                    len: 0.7
+                },
+                marker: { line: { width: 0.5, color: '#666' } }
+            };
+
+            const layout = {
+                mapbox: {
+                    style: 'open-street-map',
+                    center: { lon: -99.5, lat: 31.5 },
+                    zoom: 4.8
+                },
+                margin: { t: 10, b: 10, l: 10, r: 10 },
+                height: 600
+            };
+
+            Plotly.newPlot('countyMap', [trace], layout, { responsive: true });
         }
 
         function showError(message) {
@@ -433,10 +586,11 @@
                 (!wugType || d.WugType === wugType)
             );
 
-            // Update charts
+            // Update charts and map
             updateDemandsChart(filtered, year);
             updateProjectionChart(filtered);
             updateDataTable(filtered);
+            updateCountyMap();
         }
 
         function updateDemandsChart(data, year) {
