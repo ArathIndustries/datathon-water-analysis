@@ -243,9 +243,45 @@
             color: #333;
         }
 
+        .map-wrapper {
+            position: relative;
+        }
+
         #countyMap {
             width: 100%;
             height: 600px;
+        }
+
+        .map-legend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 0.85em;
+            color: #555;
+        }
+
+        .map-legend .legend-label {
+            white-space: nowrap;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .map-legend .legend-bar {
+            flex: 1;
+            height: 14px;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+            min-width: 120px;
+        }
+
+        .map-legend .legend-ticks {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+            color: #777;
+            min-width: 120px;
         }
 
         @media (max-width: 768px) {
@@ -400,7 +436,17 @@
                     <option value="supply">Existing Supply (acre-ft)</option>
                 </select>
             </div>
-            <div id="countyMap"></div>
+            <div class="map-wrapper">
+                <div id="countyMap"></div>
+            </div>
+            <div class="map-legend" id="mapLegend">
+                <span class="legend-label" id="legendLabel">Water Needs (ac-ft)</span>
+                <div class="legend-bar" id="legendBar"></div>
+            </div>
+            <div class="map-legend" style="margin-top:2px;">
+                <span class="legend-label" style="visibility:hidden;" id="legendSpacer">Water Needs (ac-ft)</span>
+                <div class="legend-ticks" id="legendTicks"></div>
+            </div>
         </div>
 
         <div class="charts-grid">
@@ -601,13 +647,7 @@
                 colorscale: cfg.scale,
                 zmin: 0,
                 zmax: maxLog,
-                colorbar: {
-                    title: cfg.label,
-                    thickness: 15,
-                    len: 0.7,
-                    tickvals: tickvals,
-                    ticktext: ticktext
-                },
+                showscale: false,
                 marker: { line: { width: 0.5, color: '#444' } }
             };
 
@@ -617,11 +657,26 @@
                     center: { lon: -99.5, lat: 31.5 },
                     zoom: 4.8
                 },
-                margin: { t: 10, b: 10, l: 10, r: 10 },
+                margin: { t: 0, b: 0, l: 0, r: 0 },
                 height: 600
             };
 
             Plotly.newPlot('countyMap', [trace], layout, { responsive: true });
+
+            // Build custom HTML legend
+            const colors = cfg.scale.map(s => s[1]);
+            const gradientStr = `linear-gradient(to right, ${colors.join(', ')})`;
+            document.getElementById('legendBar').style.background = gradientStr;
+            document.getElementById('legendLabel').textContent = cfg.label;
+            document.getElementById('legendSpacer').textContent = cfg.label;
+
+            const ticksEl = document.getElementById('legendTicks');
+            ticksEl.innerHTML = '';
+            for (let i = 0; i < tickCount; i++) {
+                const span = document.createElement('span');
+                span.textContent = ticktext[i];
+                ticksEl.appendChild(span);
+            }
         }
 
         function showError(message) {
