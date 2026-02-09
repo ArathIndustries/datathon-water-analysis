@@ -431,22 +431,25 @@
             });
         }
 
-        // Gray trace for non-selected counties
-        function makeGrayTrace(features, region) {
-            const locs = [], hover = [];
+        // Muted gray trace for non-selected counties (preserves data shape at ~75% gray)
+        function makeGrayTrace(features, region, metricAgg) {
+            const locs = [], zVals = [], hover = [];
             features.forEach(f => {
                 const name = f.properties.NAME.toUpperCase();
                 const r = countyToRegion[name] || '';
                 if (r !== region) {
                     locs.push(f.id);
+                    const raw = (metricAgg[name] || {}).total || 0;
+                    zVals.push(Math.log10(raw + 1));
                     hover.push(`<b>${f.properties.NAME}</b><br>Region ${r}`);
                 }
             });
             if (locs.length === 0) return null;
+            const maxLog = Math.max(...zVals) || 1;
             return {
                 type: 'choroplethmapbox', geojson: txGeojson,
-                locations: locs, z: locs.map(() => 1), text: hover, hoverinfo: 'text',
-                colorscale: [[0,'#e0e0e0'],[1,'#e0e0e0']], zmin: 0, zmax: 1,
+                locations: locs, z: zVals, text: hover, hoverinfo: 'text',
+                colorscale: [[0,'#e8e8e8'],[1,'#aaaaaa']], zmin: 0, zmax: maxLog,
                 showscale: false, marker: { line: { width: 0.3, color: '#ccc' } }
             };
         }
@@ -547,7 +550,7 @@
 
             // Gray out non-selected counties when a region is picked
             if (region) {
-                const gray = makeGrayTrace(features, region);
+                const gray = makeGrayTrace(features, region, metricAgg);
                 if (gray) traces.push(gray);
             }
 
