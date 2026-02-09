@@ -447,17 +447,17 @@
 
         <div class="charts-grid">
             <div class="chart-box">
-                <div class="chart-title">Demands by Region (2050)</div>
+                <div class="chart-title">Water Balance by Region</div>
                 <div class="chart" id="demandsChart"></div>
             </div>
             <div class="chart-box">
-                <div class="chart-title">Demand Projection Over Time</div>
+                <div class="chart-title">Statewide Projection (2020-2070)</div>
                 <div class="chart" id="projectionChart"></div>
             </div>
         </div>
 
-        <div class="chart-box">
-            <div class="chart-title">Detailed Data Table</div>
+        <div class="chart-box" style="margin-bottom: 30px;">
+            <div class="chart-title">Top Counties at Risk</div>
             <div id="dataTable" class="data-table">
                 <div class="loading">Loading data...</div>
             </div>
@@ -732,93 +732,157 @@
             );
 
             // Update charts and map
-            updateDemandsChart(filtered, year);
-            updateProjectionChart(filtered);
-            updateDataTable(filtered);
+            updateRegionalBalance(year);
+            updateStatewideProjection();
+            updateRiskTable(year);
             updateCountyMap();
         }
 
-        function updateDemandsChart(data, year) {
-            const yearCol = `D${year}`;
-            const demands = data
-                .filter(d => d[yearCol])
-                .slice(0, 20)
-                .map(d => ({
-                    entity: d.EntityName,
-                    demand: parseFloat(d[yearCol]) || 0
-                }))
-                .sort((a, b) => b.demand - a.demand);
+        function updateRegionalBalance(year) {
+            // Aggregate demand, supply, and needs by region
+            const regions = [...new Set(allData.demands.map(d => d.WugRegion))].sort();
+            const demandByRegion = {};
+            const supplyByRegion = {};
+            const needsByRegion = {};
 
-            const trace = {
-                x: demands.map(d => d.entity),
-                y: demands.map(d => d.demand),
-                type: 'bar',
-                marker: { color: '#667eea' },
-                hovertemplate: '<b>%{x}</b><br>Demand: %{y:.0f} acre-feet<extra></extra>'
-            };
+            regions.forEach(r => { demandByRegion[r] = 0; supplyByRegion[r] = 0; needsByRegion[r] = 0; });
 
-            const layout = {
-                title: `Top 20 Demands - ${year}`,
-                xaxis: { title: 'Entity' },
-                yaxis: { title: 'Demand (acre-feet)' },
-                hovermode: 'closest',
-                margin: { b: 100 }
-            };
-
-            Plotly.newPlot('demandsChart', [trace], layout, { responsive: true });
-        }
-
-        function updateProjectionChart(data) {
-            const yearColumns = ['D2020', 'D2030', 'D2040', 'D2050', 'D2060', 'D2070'];
-            const years = [2020, 2030, 2040, 2050, 2060, 2070];
-
-            // Calculate average demand per year
-            const avgByYear = yearColumns.map((col, i) => {
-                const avg = data
-                    .filter(d => d[col])
-                    .reduce((sum, d) => sum + (parseFloat(d[col]) || 0), 0) / data.length;
-                return avg;
+            allData.demands.forEach(row => {
+                demandByRegion[row.WugRegion] = (demandByRegion[row.WugRegion] || 0) + (parseFloat(row[`D${year}`]) || 0);
+            });
+            allData.existing.forEach(row => {
+                supplyByRegion[row.WugRegion] = (supplyByRegion[row.WugRegion] || 0) + (parseFloat(row[`WS${year}`]) || 0);
+            });
+            allData.needs.forEach(row => {
+                needsByRegion[row.WugRegion] = (needsByRegion[row.WugRegion] || 0) + (parseFloat(row[`N${year}`]) || 0);
             });
 
-            const trace = {
-                x: years,
-                y: avgByYear,
-                type: 'scatter',
-                mode: 'lines+markers',
-                line: { color: '#764ba2', width: 3 },
-                marker: { size: 8 },
-                fill: 'tozeroy',
-                hovertemplate: '<b>%{x}</b><br>Avg Demand: %{y:.0f} acre-feet<extra></extra>'
-            };
+            const traces = [
+                {
+                    x: regions, y: regions.map(r => demandByRegion[r]),
+                    name: 'Demand', type: 'bar',
+                    marker: { color: '#2171b5' },
+                    hovertemplate: '<b>Region %{x}</b><br>Demand: %{y:,.0f} ac-ft<extra></extra>'
+                },
+                {
+                    x: regions, y: regions.map(r => supplyByRegion[r]),
+                    name: 'Supply', type: 'bar',
+                    marker: { color: '#238b45' },
+                    hovertemplate: '<b>Region %{x}</b><br>Supply: %{y:,.0f} ac-ft<extra></extra>'
+                },
+                {
+                    x: regions, y: regions.map(r => needsByRegion[r]),
+                    name: 'Unmet Need', type: 'bar',
+                    marker: { color: '#e31a1c' },
+                    hovertemplate: '<b>Region %{x}</b><br>Unmet Need: %{y:,.0f} ac-ft<extra></extra>'
+                }
+            ];
 
             const layout = {
-                title: 'Average Demand Projection (2020-2070)',
-                xaxis: { title: 'Year' },
-                yaxis: { title: 'Average Demand (acre-feet)' },
-                hovermode: 'x unified'
+                barmode: 'group',
+                xaxis: { title: 'Planning Region' },
+                yaxis: { title: 'Acre-Feet' },
+                legend: { orientation: 'h', y: -0.2 },
+                hovermode: 'x unified',
+                margin: { t: 10, b: 80 }
             };
 
-            Plotly.newPlot('projectionChart', [trace], layout, { responsive: true });
+            Plotly.newPlot('demandsChart', traces, layout, { responsive: true });
         }
 
-        function updateDataTable(data) {
-            if (data.length === 0) {
-                document.getElementById('dataTable').innerHTML = '<p>No data found for selected filters.</p>';
+        function updateStatewideProjection() {
+            const years = [2020, 2030, 2040, 2050, 2060, 2070];
+
+            const sumByYear = (dataArray, prefix) => years.map(y => {
+                const col = `${prefix}${y}`;
+                return dataArray.reduce((sum, row) => sum + (parseFloat(row[col]) || 0), 0);
+            });
+
+            const totalDemand = sumByYear(allData.demands, 'D');
+            const totalSupply = sumByYear(allData.existing, 'WS');
+            const totalNeeds = sumByYear(allData.needs, 'N');
+
+            const traces = [
+                {
+                    x: years, y: totalDemand, name: 'Total Demand',
+                    type: 'scatter', mode: 'lines+markers',
+                    line: { color: '#2171b5', width: 3 }, marker: { size: 8 },
+                    hovertemplate: '<b>%{x}</b><br>Demand: %{y:,.0f} ac-ft<extra></extra>'
+                },
+                {
+                    x: years, y: totalSupply, name: 'Existing Supply',
+                    type: 'scatter', mode: 'lines+markers',
+                    line: { color: '#238b45', width: 3 }, marker: { size: 8 },
+                    hovertemplate: '<b>%{x}</b><br>Supply: %{y:,.0f} ac-ft<extra></extra>'
+                },
+                {
+                    x: years, y: totalNeeds, name: 'Unmet Need',
+                    type: 'scatter', mode: 'lines+markers',
+                    line: { color: '#e31a1c', width: 3, dash: 'dash' }, marker: { size: 8 },
+                    fill: 'tozeroy', fillcolor: 'rgba(227,26,28,0.1)',
+                    hovertemplate: '<b>%{x}</b><br>Unmet Need: %{y:,.0f} ac-ft<extra></extra>'
+                }
+            ];
+
+            const layout = {
+                xaxis: { title: 'Year', dtick: 10 },
+                yaxis: { title: 'Acre-Feet' },
+                legend: { orientation: 'h', y: -0.2 },
+                hovermode: 'x unified',
+                margin: { t: 10, b: 80 }
+            };
+
+            Plotly.newPlot('projectionChart', traces, layout, { responsive: true });
+        }
+
+        function updateRiskTable(year) {
+            // Aggregate by county: population, demand, supply, needs
+            const counties = {};
+            const addTo = (dataArray, prefix, field) => {
+                dataArray.forEach(row => {
+                    const c = row.WugCounty;
+                    if (!c) return;
+                    if (!counties[c]) counties[c] = { county: c, region: row.WugRegion, pop: 0, demand: 0, supply: 0, needs: 0 };
+                    counties[c][field] += parseFloat(row[`${prefix}${year}`]) || 0;
+                });
+            };
+
+            addTo(allData.demands, 'D', 'demand');
+            addTo(allData.population, 'P', 'pop');
+            addTo(allData.existing, 'WS', 'supply');
+            addTo(allData.needs, 'N', 'needs');
+
+            // Sort by needs descending, take top 25
+            const sorted = Object.values(counties)
+                .filter(c => c.needs > 0)
+                .sort((a, b) => b.needs - a.needs)
+                .slice(0, 25);
+
+            if (sorted.length === 0) {
+                document.getElementById('dataTable').innerHTML = '<p style="padding:10px;color:#666;">No counties with unmet water needs for this year/filter.</p>';
                 return;
             }
 
-            const headers = ['Entity Name', 'WUG Type', 'Region', 'County', 'D2020', 'D2050', 'D2070'];
-            let html = '<table><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+            const fmt = n => Math.round(n).toLocaleString();
 
-            data.slice(0, 50).forEach(row => {
+            let html = '<table><tr>' +
+                '<th>#</th><th>County</th><th>Region</th><th>Population</th>' +
+                '<th>Demand</th><th>Supply</th><th>Unmet Need</th><th>Deficit %</th>' +
+                '</tr>';
+
+            sorted.forEach((c, i) => {
+                const deficitPct = c.demand > 0 ? ((c.needs / c.demand) * 100).toFixed(1) : '0.0';
+                const severity = deficitPct >= 50 ? 'color:#b71c1c;font-weight:bold' :
+                                 deficitPct >= 25 ? 'color:#e65100;font-weight:bold' : 'color:#333';
                 html += '<tr>' +
-                    `<td>${row.EntityName}</td>` +
-                    `<td>${row.WugType}</td>` +
-                    `<td>${row.WugRegion}</td>` +
-                    `<td>${row.WugCounty}</td>` +
-                    `<td>${row.D2020}</td>` +
-                    `<td>${row.D2050}</td>` +
-                    `<td>${row.D2070}</td>` +
+                    `<td>${i + 1}</td>` +
+                    `<td><strong>${c.county}</strong></td>` +
+                    `<td>${c.region}</td>` +
+                    `<td>${fmt(c.pop)}</td>` +
+                    `<td>${fmt(c.demand)}</td>` +
+                    `<td>${fmt(c.supply)}</td>` +
+                    `<td style="${severity}">${fmt(c.needs)}</td>` +
+                    `<td style="${severity}">${deficitPct}%</td>` +
                     '</tr>';
             });
 
