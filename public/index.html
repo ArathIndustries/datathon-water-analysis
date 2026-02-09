@@ -738,6 +738,20 @@
             updateCountyMap();
         }
 
+        // Shared Plotly config for both charts
+        const chartConfig = {
+            responsive: true,
+            scrollZoom: true,
+            displayModeBar: true,
+            modeBarButtonsToRemove: ['select2d', 'lasso2d'],
+            modeBarButtonsToAdd: [{
+                name: 'Reset view',
+                icon: Plotly.Icons.home,
+                click: function(gd) { Plotly.relayout(gd, { 'xaxis.autorange': true, 'yaxis.autorange': true }); }
+            }],
+            displaylogo: false
+        };
+
         function updateRegionalBalance(year) {
             // Aggregate demand, supply, and needs by region
             const regions = [...new Set(allData.demands.map(d => d.WugRegion))].sort();
@@ -787,7 +801,7 @@
                 margin: { t: 10, b: 80 }
             };
 
-            Plotly.newPlot('demandsChart', traces, layout, { responsive: true });
+            Plotly.newPlot('demandsChart', traces, layout, chartConfig);
         }
 
         function updateStatewideProjection() {
@@ -832,7 +846,7 @@
                 margin: { t: 10, b: 80 }
             };
 
-            Plotly.newPlot('projectionChart', traces, layout, { responsive: true });
+            Plotly.newPlot('projectionChart', traces, layout, chartConfig);
         }
 
         function updateRiskTable(year) {
