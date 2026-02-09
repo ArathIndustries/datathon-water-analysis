@@ -555,87 +555,75 @@
             }
 
             if (mapViewMode === 'regions') {
-                // --- Categorical region colors ---
+                // --- Regions: aggregate selected metric by region, same color scale ---
                 const allRegions = [...new Set(Object.values(countyToRegion))].sort();
-                const regionColorMap = {};
-                allRegions.forEach((r, i) => regionColorMap[r] = regionPalette[i % regionPalette.length]);
 
-                const rDemand = {}, rSupply = {}, rNeeds = {}, rPop = {};
+                // Aggregate all metrics by region
+                const rDemand = {}, rSupply = {}, rNeeds = {}, rPop = {}, rMetric = {};
                 for (const [c, d] of Object.entries(demandAgg)) { const r = countyToRegion[c]; if (r) rDemand[r] = (rDemand[r] || 0) + d.total; }
                 for (const [c, d] of Object.entries(supplyAgg)) { const r = countyToRegion[c]; if (r) rSupply[r] = (rSupply[r] || 0) + d.total; }
                 for (const [c, d] of Object.entries(needsAgg)) { const r = countyToRegion[c]; if (r) rNeeds[r] = (rNeeds[r] || 0) + d.total; }
                 for (const [c, d] of Object.entries(popAgg)) { const r = countyToRegion[c]; if (r) rPop[r] = (rPop[r] || 0) + d.total; }
+                for (const [c, d] of Object.entries(metricAgg)) { const r = countyToRegion[c]; if (r) rMetric[r] = (rMetric[r] || 0) + d.total; }
 
-                const N = allRegions.length;
-                const regionIdx = {};
-                allRegions.forEach((r, i) => regionIdx[r] = i);
+                // Log-normalize region values (same approach as counties)
+                const rLogValues = {};
+                let maxLogR = 0;
+                for (const r of allRegions) {
+                    rLogValues[r] = Math.log10((rMetric[r] || 0) + 1);
+                    maxLogR = Math.max(maxLogR, rLogValues[r]);
+                }
+                maxLogR = maxLogR || 1;
 
-                const catScale = [];
-                allRegions.forEach((r, i) => {
-                    catScale.push([i / N, regionColorMap[r]]);
-                    catScale.push([Math.min((i + 1) / N, 1), regionColorMap[r]]);
-                });
-
-                // Build colored trace (all features or just selected region)
+                // Build colored trace — each county gets its region's aggregate value
                 const locs = [], zVals = [], hover = [];
                 features.forEach(f => {
                     const name = f.properties.NAME.toUpperCase();
                     const r = countyToRegion[name] || allRegions[0];
-                    if (region && r !== region) return; // skip if grayed out
+                    if (region && r !== region) return;
                     locs.push(f.id);
-                    zVals.push(regionIdx[r] + 0.5);
+                    zVals.push(rLogValues[r] || 0);
                     const deficit = rDemand[r] > 0 ? ((rNeeds[r] || 0) / rDemand[r] * 100).toFixed(1) : '0.0';
                     hover.push(
                         `<b>${f.properties.NAME} County</b><br>` +
                         `<b>Region ${r}</b><br>` +
-                        `Region Deficit: ${deficit}%<br>` +
-                        `Region Pop: ${(rPop[r] || 0).toLocaleString()}<br>` +
-                        `Region Demand: ${(rDemand[r] || 0).toLocaleString()} ac-ft<br>` +
-                        `Region Supply: ${(rSupply[r] || 0).toLocaleString()} ac-ft`
+                        `Deficit: ${deficit}%<br>` +
+                        `Pop: ${(rPop[r] || 0).toLocaleString()}<br>` +
+                        `Demand: ${(rDemand[r] || 0).toLocaleString()} ac-ft<br>` +
+                        `Supply: ${(rSupply[r] || 0).toLocaleString()} ac-ft<br>` +
+                        `Needs: ${(rNeeds[r] || 0).toLocaleString()} ac-ft`
                     );
                 });
 
                 traces.push({
                     type: 'choroplethmapbox', geojson: txGeojson,
                     locations: locs, z: zVals, text: hover, hoverinfo: 'text',
-                    colorscale: region
-                        ? [[0, regionColorMap[region]], [1, regionColorMap[region]]]
-                        : catScale,
-                    zmin: 0, zmax: region ? 1 : N, showscale: false,
-                    marker: { line: { width: 0.4, color: 'rgba(255,255,255,0.7)' } }
+                    colorscale: cfg.scale, zmin: 0, zmax: maxLogR, showscale: false,
+                    marker: { line: { width: 0.3, color: 'rgba(255,255,255,0.6)' } }
                 });
 
-                // Region labels
-                const lons = [], lats = [], labels = [], colors = [], sizes = [];
+                // Region labels at centroids
+                const lons = [], lats = [], labels = [], lColors = [], lSizes = [];
                 for (const r of allRegions) {
                     if (!regionBounds[r]) continue;
                     const b = regionBounds[r];
                     lons.push((b.minLon + b.maxLon) / 2);
                     lats.push((b.minLat + b.maxLat) / 2);
                     labels.push(r);
-                    colors.push(region && r !== region ? '#999' : '#fff');
-                    sizes.push(region && r === region ? 18 : 14);
+                    lColors.push(region && r !== region ? '#999' : '#fff');
+                    lSizes.push(region && r === region ? 18 : 15);
                 }
                 traces.push({
                     type: 'scattermapbox', lon: lons, lat: lats, text: labels,
                     mode: 'text', textposition: 'middle center',
-                    textfont: { size: sizes, color: colors, family: 'Arial Black, sans-serif' },
+                    textfont: { size: lSizes, color: lColors, family: 'Arial Black, sans-serif' },
                     hoverinfo: 'none'
                 });
 
-                // Legend: region chips
-                document.getElementById('gradientLegend').style.display = 'none';
-                document.getElementById('regionLegend').style.display = '';
-                const chipsEl = document.getElementById('regionChips');
-                chipsEl.innerHTML = '';
-                allRegions.forEach(r => {
-                    const chip = document.createElement('span');
-                    chip.className = 'region-chip';
-                    const dimmed = region && r !== region;
-                    chip.style.opacity = dimmed ? '0.4' : '1';
-                    chip.innerHTML = `<span class="region-chip-dot" style="background:${regionColorMap[r]}"></span>${r}`;
-                    chipsEl.appendChild(chip);
-                });
+                // Same gradient legend as counties (same metric, same scale)
+                document.getElementById('gradientLegend').style.display = '';
+                document.getElementById('regionLegend').style.display = 'none';
+                buildHTMLLegend(cfg, buildTicks(maxLogR, 5).ticktext);
 
             } else {
                 // --- Counties: quantitative metric ---
