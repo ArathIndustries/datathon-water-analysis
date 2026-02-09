@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.1.0] - 2026-02-08
+
+### Added
+- **Interactive Texas County Map** - Full-width choropleth map of all 254 Texas counties
+  - Color-coded by selectable metric: Water Needs, Demand, Population, Existing Supply
+  - Hover popup with county name, region, population, demand, supply, and needs
+  - Updates automatically when the year selector changes
+  - Uses Plotly `choroplethmapbox` with free OpenStreetMap tiles (no API key)
+  - Texas-only GeoJSON (166 KB) filtered from US county boundaries
+  - GeoJSON loads in parallel with CSV files for faster initialization
+  - Distinct color scales per metric (YlOrRd, Blues, Purples, Greens)
+
+### Changed
+- `initDashboard()` now loads GeoJSON and CSVs concurrently via `Promise.all`
+- `updateDashboard()` also triggers `updateCountyMap()` on each refresh
+
+---
+
 ## [1.0.0] - 2025-02-08
 
 ### Initial Release
