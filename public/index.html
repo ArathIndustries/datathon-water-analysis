@@ -431,25 +431,24 @@
             });
         }
 
-        function getRegionView(region) {
-            if (!region || !regionBounds[region]) {
-                return { center: TX_CENTER, zoom: 4.8 };
-            }
-            const b = regionBounds[region];
-            const rLon = (b.minLon + b.maxLon) / 2;
-            const rLat = (b.minLat + b.maxLat) / 2;
-            const spanLon = b.maxLon - b.minLon;
-            const spanLat = b.maxLat - b.minLat;
-            const span = Math.max(spanLon, spanLat);
-            const fullZoom = span < 1 ? 8 : span < 2 ? 7 : span < 3 ? 6.5 : span < 4 ? 6 : 5.5;
-            // Gentle 25% zoom toward region
-            const baseZoom = 4.8;
-            const zoom = baseZoom + 0.25 * (fullZoom - baseZoom);
-            const center = {
-                lon: TX_CENTER.lon + 0.25 * (rLon - TX_CENTER.lon),
-                lat: TX_CENTER.lat + 0.25 * (rLat - TX_CENTER.lat)
+        // Gray trace for non-selected counties
+        function makeGrayTrace(features, region) {
+            const locs = [], hover = [];
+            features.forEach(f => {
+                const name = f.properties.NAME.toUpperCase();
+                const r = countyToRegion[name] || '';
+                if (r !== region) {
+                    locs.push(f.id);
+                    hover.push(`<b>${f.properties.NAME}</b><br>Region ${r}`);
+                }
+            });
+            if (locs.length === 0) return null;
+            return {
+                type: 'choroplethmapbox', geojson: txGeojson,
+                locations: locs, z: locs.map(() => 1), text: hover, hoverinfo: 'text',
+                colorscale: [[0,'#e0e0e0'],[1,'#e0e0e0']], zmin: 0, zmax: 1,
+                showscale: false, marker: { line: { width: 0.3, color: '#ccc' } }
             };
-            return { center, zoom };
         }
 
         function showError(message) {
@@ -529,8 +528,6 @@
         }
 
         // --- County Map ---
-        // Counties = quantitative choropleth (metric, log-scaled)
-        // Regions = categorical reference map (distinct color per region + labels)
         function updateCountyMap() {
             if (!txGeojson || allData.demands.length === 0) return;
 
@@ -546,23 +543,26 @@
             const metricAgg = { needs: needsAgg, demand: demandAgg, population: popAgg, supply: supplyAgg }[metric];
 
             const features = txGeojson.features;
-            const locations = [], zValues = [], hoverTexts = [];
             const traces = [];
 
+            // Gray out non-selected counties when a region is picked
+            if (region) {
+                const gray = makeGrayTrace(features, region);
+                if (gray) traces.push(gray);
+            }
+
             if (mapViewMode === 'regions') {
-                // --- Categorical: each region a distinct color, county names in hover ---
+                // --- Categorical region colors ---
                 const allRegions = [...new Set(Object.values(countyToRegion))].sort();
                 const regionColorMap = {};
                 allRegions.forEach((r, i) => regionColorMap[r] = regionPalette[i % regionPalette.length]);
 
-                // Region aggregates for hover context
                 const rDemand = {}, rSupply = {}, rNeeds = {}, rPop = {};
                 for (const [c, d] of Object.entries(demandAgg)) { const r = countyToRegion[c]; if (r) rDemand[r] = (rDemand[r] || 0) + d.total; }
                 for (const [c, d] of Object.entries(supplyAgg)) { const r = countyToRegion[c]; if (r) rSupply[r] = (rSupply[r] || 0) + d.total; }
                 for (const [c, d] of Object.entries(needsAgg)) { const r = countyToRegion[c]; if (r) rNeeds[r] = (rNeeds[r] || 0) + d.total; }
                 for (const [c, d] of Object.entries(popAgg)) { const r = countyToRegion[c]; if (r) rPop[r] = (rPop[r] || 0) + d.total; }
 
-                // Discrete colorscale: each region index -> solid color band
                 const N = allRegions.length;
                 const regionIdx = {};
                 allRegions.forEach((r, i) => regionIdx[r] = i);
@@ -573,13 +573,16 @@
                     catScale.push([Math.min((i + 1) / N, 1), regionColorMap[r]]);
                 });
 
+                // Build colored trace (all features or just selected region)
+                const locs = [], zVals = [], hover = [];
                 features.forEach(f => {
                     const name = f.properties.NAME.toUpperCase();
                     const r = countyToRegion[name] || allRegions[0];
-                    locations.push(f.id);
-                    zValues.push(regionIdx[r] + 0.5);
+                    if (region && r !== region) return; // skip if grayed out
+                    locs.push(f.id);
+                    zVals.push(regionIdx[r] + 0.5);
                     const deficit = rDemand[r] > 0 ? ((rNeeds[r] || 0) / rDemand[r] * 100).toFixed(1) : '0.0';
-                    hoverTexts.push(
+                    hover.push(
                         `<b>${f.properties.NAME} County</b><br>` +
                         `<b>Region ${r}</b><br>` +
                         `Region Deficit: ${deficit}%<br>` +
@@ -591,28 +594,33 @@
 
                 traces.push({
                     type: 'choroplethmapbox', geojson: txGeojson,
-                    locations, z: zValues, text: hoverTexts, hoverinfo: 'text',
-                    colorscale: catScale, zmin: 0, zmax: N, showscale: false,
+                    locations: locs, z: zVals, text: hover, hoverinfo: 'text',
+                    colorscale: region
+                        ? [[0, regionColorMap[region]], [1, regionColorMap[region]]]
+                        : catScale,
+                    zmin: 0, zmax: region ? 1 : N, showscale: false,
                     marker: { line: { width: 0.4, color: 'rgba(255,255,255,0.7)' } }
                 });
 
-                // Region letter labels at centroids
-                const lons = [], lats = [], labels = [];
+                // Region labels
+                const lons = [], lats = [], labels = [], colors = [], sizes = [];
                 for (const r of allRegions) {
                     if (!regionBounds[r]) continue;
                     const b = regionBounds[r];
                     lons.push((b.minLon + b.maxLon) / 2);
                     lats.push((b.minLat + b.maxLat) / 2);
                     labels.push(r);
+                    colors.push(region && r !== region ? '#999' : '#fff');
+                    sizes.push(region && r === region ? 18 : 14);
                 }
                 traces.push({
                     type: 'scattermapbox', lon: lons, lat: lats, text: labels,
                     mode: 'text', textposition: 'middle center',
-                    textfont: { size: 16, color: '#fff', family: 'Arial Black, sans-serif' },
+                    textfont: { size: sizes, color: colors, family: 'Arial Black, sans-serif' },
                     hoverinfo: 'none'
                 });
 
-                // Swap legends: show region chips, hide gradient
+                // Legend: region chips
                 document.getElementById('gradientLegend').style.display = 'none';
                 document.getElementById('regionLegend').style.display = '';
                 const chipsEl = document.getElementById('regionChips');
@@ -620,23 +628,34 @@
                 allRegions.forEach(r => {
                     const chip = document.createElement('span');
                     chip.className = 'region-chip';
+                    const dimmed = region && r !== region;
+                    chip.style.opacity = dimmed ? '0.4' : '1';
                     chip.innerHTML = `<span class="region-chip-dot" style="background:${regionColorMap[r]}"></span>${r}`;
                     chipsEl.appendChild(chip);
                 });
 
             } else {
-                // --- Counties: quantitative metric with log scale ---
+                // --- Counties: quantitative metric ---
+                // Compute statewide max for consistent scale
+                let maxLogAll = 0;
+                features.forEach(f => {
+                    const raw = (metricAgg[f.properties.NAME.toUpperCase()] || {}).total || 0;
+                    maxLogAll = Math.max(maxLogAll, Math.log10(raw + 1));
+                });
+                maxLogAll = maxLogAll || 1;
+
+                const locs = [], zVals = [], hover = [];
                 features.forEach(f => {
                     const name = f.properties.NAME.toUpperCase();
-                    locations.push(f.id);
-                    const raw = (metricAgg[name] || {}).total || 0;
-                    zValues.push(Math.log10(raw + 1));
+                    const r = countyToRegion[name] || 'N/A';
+                    if (region && r !== region) return; // skip grayed-out
+                    locs.push(f.id);
+                    zVals.push(Math.log10(((metricAgg[name] || {}).total || 0) + 1));
                     const demand = (demandAgg[name] || {}).total || 0;
                     const needs = (needsAgg[name] || {}).total || 0;
                     const pop = (popAgg[name] || {}).total || 0;
                     const supply = (supplyAgg[name] || {}).total || 0;
-                    const r = countyToRegion[name] || 'N/A';
-                    hoverTexts.push(
+                    hover.push(
                         `<b>${f.properties.NAME} County</b><br>` +
                         `Region: ${r}<br>` +
                         `Population: ${pop.toLocaleString()}<br>` +
@@ -646,23 +665,19 @@
                     );
                 });
 
-                const maxLog = Math.max(...zValues) || 1;
-                const { ticktext } = buildTicks(maxLog, 5);
-
                 traces.push({
                     type: 'choroplethmapbox', geojson: txGeojson,
-                    locations, z: zValues, text: hoverTexts, hoverinfo: 'text',
-                    colorscale: cfg.scale, zmin: 0, zmax: maxLog, showscale: false,
+                    locations: locs, z: zVals, text: hover, hoverinfo: 'text',
+                    colorscale: cfg.scale, zmin: 0, zmax: maxLogAll, showscale: false,
                     marker: { line: { width: 0.5, color: '#444' } }
                 });
 
-                // Swap legends: show gradient, hide region chips
                 document.getElementById('gradientLegend').style.display = '';
                 document.getElementById('regionLegend').style.display = 'none';
-                buildHTMLLegend(cfg, ticktext);
+                buildHTMLLegend(cfg, buildTicks(maxLogAll, 5).ticktext);
             }
 
-            const view = getRegionView(region);
+            // Always full Texas view — graying handles the visual focus
             const mapEl = document.getElementById('countyMap');
             const w = mapEl.parentElement.clientWidth;
             const h = w < 500 ? 350 : 550;
@@ -670,8 +685,8 @@
             const layout = {
                 mapbox: {
                     style: 'open-street-map',
-                    center: view.center,
-                    zoom: w < 400 ? Math.max(view.zoom - 0.8, 3.5) : view.zoom
+                    center: TX_CENTER,
+                    zoom: w < 400 ? 4.0 : 4.8
                 },
                 margin: { t: 0, b: 0, l: 0, r: 0 }, height: h, autosize: true
             };
