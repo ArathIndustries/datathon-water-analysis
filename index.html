@@ -28,41 +28,32 @@
 
         header {
             background: white;
-            padding: 30px;
+            padding: 20px 30px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
+            margin-bottom: 15px;
         }
 
         h1 {
             color: #667eea;
-            margin-bottom: 10px;
-            font-size: 2.5em;
+            margin-bottom: 4px;
+            font-size: 2em;
         }
 
         .subtitle {
             color: #666;
-            font-size: 1.1em;
-            margin-bottom: 20px;
-        }
-
-        .intro {
-            background: #f0f4ff;
-            padding: 15px;
-            border-left: 4px solid #667eea;
-            border-radius: 5px;
-            color: #555;
-            line-height: 1.6;
+            font-size: 1em;
+            margin: 0;
         }
 
         .controls {
             background: white;
-            padding: 20px;
+            padding: 12px 20px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
+            margin-bottom: 15px;
             display: flex;
-            gap: 20px;
+            gap: 12px;
             flex-wrap: wrap;
             align-items: center;
         }
@@ -126,32 +117,31 @@
             height: 400px;
         }
 
-        .stats-grid {
+        .insights-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 15px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
-        .stat-box {
+        .insight-card {
             background: white;
-            padding: 20px;
+            padding: 16px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid #667eea;
+            text-align: center;
         }
 
-        .stat-label {
-            color: #666;
-            font-size: 0.9em;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-
-        .stat-value {
-            font-size: 2em;
-            color: #667eea;
+        .insight-value {
+            font-size: 1.8em;
             font-weight: bold;
+            line-height: 1.2;
+        }
+
+        .insight-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 4px;
         }
 
         .data-table {
@@ -187,14 +177,6 @@
             text-align: center;
             padding: 20px;
             color: #666;
-        }
-
-        .info-box {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
         }
 
         footer {
@@ -310,18 +292,27 @@
                 margin-bottom: 15px;
             }
 
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
+            .insights-grid {
+                grid-template-columns: 1fr;
                 gap: 10px;
-                margin-bottom: 15px;
+                margin-bottom: 10px;
             }
 
-            .stat-box {
-                padding: 12px;
+            .insight-card {
+                padding: 10px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                text-align: left;
             }
 
-            .stat-value {
-                font-size: 1.4em;
+            .insight-value {
+                font-size: 1.3em;
+                white-space: nowrap;
+            }
+
+            .insight-label {
+                margin-top: 0;
             }
 
             .map-section {
@@ -352,12 +343,6 @@
                 font-size: 0.85em;
             }
 
-            .info-box {
-                padding: 10px;
-                font-size: 0.9em;
-                margin-bottom: 15px;
-            }
-
             footer {
                 padding: 15px;
                 font-size: 0.9em;
@@ -368,24 +353,20 @@
 <body>
     <div class="container">
         <header>
-            <h1>💧 Texas Water Crisis Analysis</h1>
-            <p class="subtitle">Interactive Dashboard - TWDB Data Analysis</p>
-            <div class="intro">
-                <p><strong>Project:</strong> TXST Love Data Week 2026 - Analyzing Texas water availability and implications for infrastructure development.</p>
-                <p style="margin-top: 10px;"><strong>Data Source:</strong> Texas Water Development Board (TWDB) State Water Plan 2026</p>
-            </div>
+            <h1>Texas Water Crisis Analysis</h1>
+            <p class="subtitle">TWDB State Water Plan 2026 &mdash; TXST Love Data Week</p>
         </header>
 
         <div class="controls">
-            <select id="regionSelect">
+            <select id="regionSelect" onchange="updateDashboard()">
                 <option value="">All Regions</option>
             </select>
 
-            <select id="wugTypeSelect">
-                <option value="">All WUG Types</option>
+            <select id="wugTypeSelect" onchange="updateDashboard()">
+                <option value="">All Sectors</option>
             </select>
 
-            <select id="yearSelect">
+            <select id="yearSelect" onchange="updateDashboard()">
                 <option value="2020">2020</option>
                 <option value="2030">2030</option>
                 <option value="2040">2040</option>
@@ -394,30 +375,21 @@
                 <option value="2070">2070</option>
             </select>
 
-            <button onclick="updateDashboard()">Update Dashboard</button>
-            <button onclick="downloadData()">📥 Download Data</button>
+            <button onclick="downloadData()">Export CSV</button>
         </div>
 
-        <div class="info-box">
-            <strong>ℹ️ How to use:</strong> Select a region and water user group type, choose a year, and click "Update Dashboard" to see the data visualization. Hover over charts for detailed information.
-        </div>
-
-        <div class="stats-grid" id="statsGrid">
-            <div class="stat-box">
-                <div class="stat-label">Total Records</div>
-                <div class="stat-value" id="totalRecords">--</div>
+        <div class="insights-grid">
+            <div class="insight-card">
+                <div class="insight-value" id="insightDeficit" style="color:#e31a1c;">--</div>
+                <div class="insight-label">Statewide Water Deficit (acre-ft)</div>
             </div>
-            <div class="stat-box">
-                <div class="stat-label">Regions</div>
-                <div class="stat-value" id="totalRegions">--</div>
+            <div class="insight-card">
+                <div class="insight-value" id="insightCounties" style="color:#e65100;">--</div>
+                <div class="insight-label">Counties with Unmet Needs</div>
             </div>
-            <div class="stat-box">
-                <div class="stat-label">WUG Types</div>
-                <div class="stat-value" id="totalWugTypes">--</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Data Coverage</div>
-                <div class="stat-value" id="dataCoverage">--</div>
+            <div class="insight-card">
+                <div class="insight-value" id="insightPopulation" style="color:#54278f;">--</div>
+                <div class="insight-label">People in At-Risk Counties</div>
             </div>
         </div>
 
@@ -524,14 +496,7 @@
                 console.warn('Data loading errors:', errors);
             }
 
-            if (allData.demands.length > 0) {
-                document.getElementById('totalRecords').textContent = allData.demands.length.toLocaleString();
-                document.getElementById('totalRegions').textContent =
-                    new Set(allData.demands.map(d => d.WugRegion)).size;
-                document.getElementById('totalWugTypes').textContent =
-                    new Set(allData.demands.map(d => d.WugType)).size;
-                document.getElementById('dataCoverage').textContent = '2020-2070';
-            } else {
+            if (allData.demands.length === 0) {
                 showError('Could not load data files. If opening this file directly, you need to use a local server instead. See console for details.');
             }
         }
@@ -688,54 +653,83 @@
             }
         }
 
+        const sectorLabels = {
+            'MUNICIPAL': 'Municipal (Cities)',
+            'IRRIGATION': 'Irrigation (Agriculture)',
+            'LIVESTOCK': 'Livestock (Ranching)',
+            'MANUFACTURING': 'Manufacturing',
+            'MINING': 'Mining (Oil/Gas)',
+            'STEAM ELECTRIC POWER': 'Power Generation'
+        };
+
         function populateSelects() {
             if (allData.demands.length === 0) return;
 
-            const regions = ['All Regions', ...new Set(allData.demands.map(d => d.WugRegion || 'Unknown'))];
-            const wugTypes = ['All WUG Types', ...new Set(allData.demands.map(d => d.WugType || 'Unknown'))];
+            const regions = [...new Set(allData.demands.map(d => d.WugRegion || 'Unknown'))].sort();
+            const wugTypes = [...new Set(allData.demands.map(d => d.WugType || 'Unknown'))].sort();
 
             const regionSelect = document.getElementById('regionSelect');
             const wugSelect = document.getElementById('wugTypeSelect');
 
             regions.forEach(r => {
-                if (r !== 'All Regions') {
-                    const option = document.createElement('option');
-                    option.value = r;
-                    option.textContent = r;
-                    regionSelect.appendChild(option);
-                }
+                const option = document.createElement('option');
+                option.value = r;
+                option.textContent = `Region ${r}`;
+                regionSelect.appendChild(option);
             });
 
             wugTypes.forEach(w => {
-                if (w !== 'All WUG Types') {
-                    const option = document.createElement('option');
-                    option.value = w;
-                    option.textContent = w;
-                    wugSelect.appendChild(option);
-                }
+                const option = document.createElement('option');
+                option.value = w;
+                option.textContent = sectorLabels[w] || w;
+                wugSelect.appendChild(option);
             });
         }
 
         function updateDashboard() {
-            if (allData.demands.length === 0) {
-                alert('Data not loaded yet. Please try again.');
-                return;
-            }
+            if (allData.demands.length === 0) return;
 
-            const region = document.getElementById('regionSelect').value;
-            const wugType = document.getElementById('wugTypeSelect').value;
             const year = document.getElementById('yearSelect').value || '2050';
 
-            let filtered = allData.demands.filter(d =>
-                (!region || d.WugRegion === region) &&
-                (!wugType || d.WugType === wugType)
-            );
-
-            // Update charts and map
+            updateInsights(year);
             updateRegionalBalance(year);
             updateStatewideProjection();
             updateRiskTable(year);
             updateCountyMap();
+        }
+
+        function updateInsights(year) {
+            // Statewide deficit
+            let totalNeeds = 0;
+            allData.needs.forEach(row => { totalNeeds += parseFloat(row[`N${year}`]) || 0; });
+
+            // Counties with unmet needs & population at risk
+            const countyNeeds = {};
+            const countyPop = {};
+            allData.needs.forEach(row => {
+                const c = row.WugCounty;
+                if (!c) return;
+                countyNeeds[c] = (countyNeeds[c] || 0) + (parseFloat(row[`N${year}`]) || 0);
+            });
+            allData.population.forEach(row => {
+                const c = row.WugCounty;
+                if (!c) return;
+                countyPop[c] = (countyPop[c] || 0) + (parseFloat(row[`P${year}`]) || 0);
+            });
+
+            let countiesInNeed = 0;
+            let popAtRisk = 0;
+            for (const c in countyNeeds) {
+                if (countyNeeds[c] > 0) {
+                    countiesInNeed++;
+                    popAtRisk += countyPop[c] || 0;
+                }
+            }
+
+            document.getElementById('insightDeficit').textContent = Math.round(totalNeeds).toLocaleString();
+            document.getElementById('insightCounties').textContent = `${countiesInNeed} of 254`;
+            document.getElementById('insightPopulation').textContent =
+                popAtRisk >= 1e6 ? (popAtRisk / 1e6).toFixed(1) + 'M' : Math.round(popAtRisk).toLocaleString();
         }
 
         // Shared Plotly config for both charts
