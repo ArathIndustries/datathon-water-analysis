@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Texas Water Crisis Analysis - Interactive Dashboard</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Papa/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -245,7 +245,7 @@
             <p class="subtitle">Interactive Dashboard - TWDB Data Analysis</p>
             <div class="intro">
                 <p><strong>Project:</strong> TXST Love Data Week 2026 - Analyzing Texas water availability and implications for infrastructure development.</p>
-                <p style="margin-top: 10px;"><strong>Data Source:</strong> Texas Department of Biological Resources (TWDB) State Water Plan 2026</p>
+                <p style="margin-top: 10px;"><strong>Data Source:</strong> Texas Water Development Board (TWDB) State Water Plan 2026</p>
             </div>
         </header>
 
@@ -258,7 +258,14 @@
                 <option value="">All WUG Types</option>
             </select>
 
-            <input type="number" id="yearSelect" placeholder="Select Year (2020-2070)" min="2020" max="2070" value="2050">
+            <select id="yearSelect">
+                <option value="2020">2020</option>
+                <option value="2030">2030</option>
+                <option value="2040">2040</option>
+                <option value="2050" selected>2050</option>
+                <option value="2060">2060</option>
+                <option value="2070">2070</option>
+            </select>
 
             <button onclick="updateDashboard()">Update Dashboard</button>
             <button onclick="downloadData()">📥 Download Data</button>
@@ -311,7 +318,7 @@
                 Data Source: <a href="https://texasstatewaterplan.org/" target="_blank">Texas State Water Plan</a> |
                 <a href="https://www.twdb.texas.gov/" target="_blank">TWDB</a>
             </p>
-            <a href="https://github.com/yourusername/texas-water-analysis" class="github-link">📂 View on GitHub</a>
+            <a href="https://github.com/ArathIndustries/datathon-water-analysis" class="github-link">📂 View on GitHub</a>
         </footer>
     </div>
 
@@ -337,21 +344,33 @@
         }
 
         async function loadCSVFiles() {
-            // These will be loaded from the public folder
+            if (typeof Papa === 'undefined') {
+                showError('PapaParse library failed to load. Check your internet connection or try disabling tracking prevention for this site.');
+                return;
+            }
+
             const files = ['demands.csv', 'existing.csv', 'needs.csv', 'population.csv', 'strategies.csv'];
+            const errors = [];
 
             for (const file of files) {
                 try {
                     const response = await fetch(`data/${file}`);
+                    if (!response.ok) {
+                        errors.push(`${file}: HTTP ${response.status}`);
+                        continue;
+                    }
                     const text = await response.text();
-                    const data = Papa.parse(text, { header: true });
-                    allData[file.replace('.csv', '')] = data.data;
+                    const result = Papa.parse(text, { header: true, skipEmptyLines: true });
+                    allData[file.replace('.csv', '')] = result.data;
                 } catch (e) {
-                    console.warn(`Could not load ${file}:`, e);
+                    errors.push(`${file}: ${e.message}`);
                 }
             }
 
-            // Update stats
+            if (errors.length > 0) {
+                console.warn('Data loading errors:', errors);
+            }
+
             if (allData.demands.length > 0) {
                 document.getElementById('totalRecords').textContent = allData.demands.length.toLocaleString();
                 document.getElementById('totalRegions').textContent =
@@ -359,6 +378,15 @@
                 document.getElementById('totalWugTypes').textContent =
                     new Set(allData.demands.map(d => d.WugType)).size;
                 document.getElementById('dataCoverage').textContent = '2020-2070';
+            } else {
+                showError('Could not load data files. If opening this file directly, you need to use a local server instead. See console for details.');
+            }
+        }
+
+        function showError(message) {
+            const el = document.getElementById('dataTable');
+            if (el) {
+                el.innerHTML = `<div style="color:#d32f2f;padding:20px;background:#ffebee;border-radius:5px;border-left:4px solid #d32f2f;"><strong>Error:</strong> ${message}</div>`;
             }
         }
 
@@ -503,9 +531,10 @@
             const year = document.getElementById('yearSelect').value || '2050';
             const yearCol = `D${year}`;
 
+            const q = v => `"${String(v || '').replace(/"/g, '""')}"`;
             let csv = 'EntityName,WugType,Region,County,' + yearCol + '\n';
             allData.demands.forEach(d => {
-                csv += `${d.EntityName},${d.WugType},${d.WugRegion},${d.WugCounty},${d[yearCol]}\n`;
+                csv += `${q(d.EntityName)},${q(d.WugType)},${q(d.WugRegion)},${q(d.WugCounty)},${d[yearCol] || 0}\n`;
             });
 
             const blob = new Blob([csv], { type: 'text/csv' });
