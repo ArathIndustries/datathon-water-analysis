@@ -504,7 +504,7 @@
             document.getElementById('insightPopLabel').textContent = `People in At-Risk Counties`;
         }
 
-        // --- County Map (toggle between counties & regions view, gentle zoom on region select) ---
+        // --- County Map (counties = raw metric, regions = deficit % with labels) ---
         function updateCountyMap() {
             if (!txGeojson || allData.demands.length === 0) return;
 
@@ -513,7 +513,6 @@
             const region = document.getElementById('regionSelect').value;
             const cfg = colorConfigs[metric];
 
-            // Always aggregate ALL counties (map always shows full state)
             const demandAgg = aggregateByCounty(allData.demands, 'D', year, '');
             const needsAgg = aggregateByCounty(allData.needs, 'N', year, '');
             const popAgg = aggregateByCounty(allData.population, 'P', year, '');
@@ -521,36 +520,75 @@
             const metricAgg = { needs: needsAgg, demand: demandAgg, population: popAgg, supply: supplyAgg }[metric];
 
             const features = txGeojson.features;
-            const locations = [], rawValues = [], hoverTexts = [];
+            const locations = [], zValues = [], hoverTexts = [];
+            const traces = [];
+            let legLabel, legColors, legTicks;
 
             if (mapViewMode === 'regions') {
-                // Aggregate by region
-                const rTotals = {}, rDemand = {}, rSupply = {}, rNeeds = {}, rPop = {};
-                for (const [c, d] of Object.entries(metricAgg)) { const r = countyToRegion[c]; if (r) rTotals[r] = (rTotals[r] || 0) + d.total; }
+                // --- Regions: deficit % (needs/demand) with green-to-red scale + labels ---
+                const rDemand = {}, rSupply = {}, rNeeds = {}, rPop = {};
                 for (const [c, d] of Object.entries(demandAgg)) { const r = countyToRegion[c]; if (r) rDemand[r] = (rDemand[r] || 0) + d.total; }
                 for (const [c, d] of Object.entries(supplyAgg)) { const r = countyToRegion[c]; if (r) rSupply[r] = (rSupply[r] || 0) + d.total; }
                 for (const [c, d] of Object.entries(needsAgg)) { const r = countyToRegion[c]; if (r) rNeeds[r] = (rNeeds[r] || 0) + d.total; }
                 for (const [c, d] of Object.entries(popAgg)) { const r = countyToRegion[c]; if (r) rPop[r] = (rPop[r] || 0) + d.total; }
 
+                const rDeficit = {};
+                for (const r in rDemand) {
+                    rDeficit[r] = rDemand[r] > 0 ? (rNeeds[r] || 0) / rDemand[r] * 100 : 0;
+                }
+
                 features.forEach(f => {
                     const name = f.properties.NAME.toUpperCase();
                     const r = countyToRegion[name] || '';
                     locations.push(f.id);
-                    rawValues.push(rTotals[r] || 0);
+                    zValues.push(rDeficit[r] || 0);
                     hoverTexts.push(
                         `<b>Region ${r}</b><br>` +
+                        `Deficit: ${(rDeficit[r] || 0).toFixed(1)}% of demand unmet<br>` +
                         `Population: ${(rPop[r] || 0).toLocaleString()}<br>` +
                         `Demand: ${(rDemand[r] || 0).toLocaleString()} ac-ft<br>` +
                         `Supply: ${(rSupply[r] || 0).toLocaleString()} ac-ft<br>` +
-                        `Needs: ${(rNeeds[r] || 0).toLocaleString()} ac-ft`
+                        `Unmet Need: ${(rNeeds[r] || 0).toLocaleString()} ac-ft`
                     );
                 });
+
+                const maxDef = Math.max(...Object.values(rDeficit), 1);
+                const deficitScale = [[0,'#1a9850'],[0.15,'#91cf60'],[0.35,'#fee08b'],[0.6,'#fc8d59'],[1,'#d73027']];
+
+                traces.push({
+                    type: 'choroplethmapbox', geojson: txGeojson,
+                    locations, z: zValues, text: hoverTexts, hoverinfo: 'text',
+                    colorscale: deficitScale, zmin: 0, zmax: maxDef, showscale: false,
+                    marker: { line: { width: 0.3, color: '#bbb' } }
+                });
+
+                // Region labels at centroids
+                const lons = [], lats = [], labels = [];
+                for (const r in regionBounds) {
+                    const b = regionBounds[r];
+                    lons.push((b.minLon + b.maxLon) / 2);
+                    lats.push((b.minLat + b.maxLat) / 2);
+                    labels.push(`${r}\n${(rDeficit[r] || 0).toFixed(0)}%`);
+                }
+                traces.push({
+                    type: 'scattermapbox', lon: lons, lat: lats, text: labels,
+                    mode: 'text', textposition: 'middle center',
+                    textfont: { size: 13, color: '#222', family: 'Arial Black, sans-serif' },
+                    hoverinfo: 'none'
+                });
+
+                legLabel = 'Deficit % (Unmet Need / Demand)';
+                legColors = deficitScale.map(s => s[1]);
+                legTicks = [];
+                for (let i = 0; i < 5; i++) legTicks.push(Math.round(maxDef * i / 4) + '%');
+
             } else {
-                // Counties view
+                // --- Counties: raw metric with log scale ---
                 features.forEach(f => {
                     const name = f.properties.NAME.toUpperCase();
                     locations.push(f.id);
-                    rawValues.push((metricAgg[name] || {}).total || 0);
+                    const raw = (metricAgg[name] || {}).total || 0;
+                    zValues.push(Math.log10(raw + 1));
                     const demand = (demandAgg[name] || {}).total || 0;
                     const needs = (needsAgg[name] || {}).total || 0;
                     const pop = (popAgg[name] || {}).total || 0;
@@ -565,21 +603,21 @@
                         `Needs: ${needs.toLocaleString()} ac-ft`
                     );
                 });
+
+                const maxLog = Math.max(...zValues) || 1;
+                const { ticktext } = buildTicks(maxLog, 5);
+
+                traces.push({
+                    type: 'choroplethmapbox', geojson: txGeojson,
+                    locations, z: zValues, text: hoverTexts, hoverinfo: 'text',
+                    colorscale: cfg.scale, zmin: 0, zmax: maxLog, showscale: false,
+                    marker: { line: { width: 0.5, color: '#444' } }
+                });
+
+                legLabel = cfg.label;
+                legColors = cfg.scale.map(s => s[1]);
+                legTicks = ticktext;
             }
-
-            const logValues = rawValues.map(v => Math.log10(v + 1));
-            const maxLog = Math.max(...logValues) || 1;
-            const { ticktext } = buildTicks(maxLog, 5);
-
-            const lineW = mapViewMode === 'regions' ? 0.3 : 0.5;
-            const lineC = mapViewMode === 'regions' ? '#999' : '#444';
-
-            const trace = {
-                type: 'choroplethmapbox', geojson: txGeojson,
-                locations, z: logValues, text: hoverTexts, hoverinfo: 'text',
-                colorscale: cfg.scale, zmin: 0, zmax: maxLog, showscale: false,
-                marker: { line: { width: lineW, color: lineC } }
-            };
 
             const view = getRegionView(region);
             const mapEl = document.getElementById('countyMap');
@@ -595,10 +633,17 @@
                 margin: { t: 0, b: 0, l: 0, r: 0 }, height: h, autosize: true
             };
 
-            Plotly.newPlot('countyMap', [trace], layout, { responsive: true });
-            buildHTMLLegend(cfg, ticktext);
+            Plotly.newPlot('countyMap', traces, layout, { responsive: true });
 
-            const viewLabel = mapViewMode === 'regions' ? 'Regions' : 'Counties';
+            // Update legend
+            document.getElementById('legendBar').style.background = `linear-gradient(to right, ${legColors.join(', ')})`;
+            document.getElementById('legendLabel').textContent = legLabel;
+            document.getElementById('legendSpacer').textContent = legLabel;
+            const ticksEl = document.getElementById('legendTicks');
+            ticksEl.innerHTML = '';
+            legTicks.forEach(t => { const s = document.createElement('span'); s.textContent = t; ticksEl.appendChild(s); });
+
+            const viewLabel = mapViewMode === 'regions' ? 'Regional Deficit Risk' : 'Counties';
             document.getElementById('countyMapTitle').textContent =
                 region ? `Region ${region} — ${viewLabel} View` : `All Texas — ${viewLabel} View`;
         }
