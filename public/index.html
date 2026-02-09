@@ -111,6 +111,30 @@
         .map-legend .legend-bar { flex: 1; height: 12px; border-radius: 3px; border: 1px solid #ccc; min-width: 80px; }
         .map-legend .legend-ticks { flex: 1; display: flex; justify-content: space-between; font-size: 0.85em; color: #777; min-width: 80px; }
 
+        .map-toggle {
+            display: flex; gap: 2px; background: #f0f0f0; border-radius: 6px; padding: 2px;
+        }
+        .map-toggle button {
+            background: transparent; color: #666; border: none; padding: 5px 14px;
+            border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: 600;
+            transition: all 0.2s;
+        }
+        .map-toggle button.active { background: #667eea; color: white; }
+        .map-toggle button:hover:not(.active) { background: #e0e0e0; }
+
+        .sector-breakdown { margin-top: 10px; }
+        .sector-breakdown-title { font-size: 0.8em; font-weight: 600; color: #333; margin-bottom: 4px; }
+        .sector-bar { display: flex; height: 22px; border-radius: 4px; overflow: hidden; border: 1px solid #ddd; }
+        .sector-segment {
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 0.7em; font-weight: 600; white-space: nowrap;
+            overflow: hidden; padding: 0 4px; min-width: 0; transition: opacity 0.2s;
+        }
+        .sector-segment:hover { opacity: 0.85; }
+        .sector-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 0.75em; color: #555; }
+        .sector-legend-item { display: flex; align-items: center; gap: 3px; }
+        .sector-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
         /* Charts */
         .charts-grid {
             display: grid;
@@ -204,10 +228,6 @@
                 <option value="">All Regions</option>
             </select>
 
-            <select id="wugTypeSelect" onchange="updateDashboard()">
-                <option value="">All Sectors</option>
-            </select>
-
             <select id="yearSelect" onchange="updateDashboard()">
                 <option value="2020">2020</option>
                 <option value="2030">2030</option>
@@ -230,6 +250,10 @@
         <div class="map-section">
             <div class="map-header">
                 <span class="map-title" id="countyMapTitle">All Texas — 254 Counties</span>
+                <div class="map-toggle">
+                    <button class="active" data-mode="counties" onclick="toggleMapView('counties')">Counties</button>
+                    <button data-mode="regions" onclick="toggleMapView('regions')">Regions</button>
+                </div>
             </div>
             <div class="map-wrapper"><div id="countyMap"></div></div>
             <div class="map-legend">
@@ -239,6 +263,11 @@
             <div class="map-legend" style="margin-top:2px;">
                 <span class="legend-label" style="visibility:hidden;" id="legendSpacer">--</span>
                 <div class="legend-ticks" id="legendTicks"></div>
+            </div>
+            <div class="sector-breakdown">
+                <div class="sector-breakdown-title">Demand by Sector</div>
+                <div class="sector-bar" id="sectorBar"></div>
+                <div class="sector-legend" id="sectorLegend"></div>
             </div>
         </div>
 
@@ -290,6 +319,20 @@
             'LIVESTOCK': 'Livestock (Ranching)', 'MANUFACTURING': 'Manufacturing',
             'MINING': 'Mining (Oil/Gas)', 'STEAM ELECTRIC POWER': 'Power Generation'
         };
+
+        const sectorColors = {
+            'MUNICIPAL': '#2171b5', 'IRRIGATION': '#238b45', 'LIVESTOCK': '#d4a017',
+            'MANUFACTURING': '#e65100', 'MINING': '#6a1b9a', 'STEAM ELECTRIC POWER': '#c62828'
+        };
+
+        let mapViewMode = 'counties';
+
+        function toggleMapView(mode) {
+            mapViewMode = mode;
+            document.querySelectorAll('.map-toggle button').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.map-toggle button[data-mode="${mode}"]`).classList.add('active');
+            updateCountyMap();
+        }
 
         // --- Init ---
         async function initDashboard() {
@@ -369,14 +412,20 @@
                 return { center: TX_CENTER, zoom: 4.8 };
             }
             const b = regionBounds[region];
-            const cLon = (b.minLon + b.maxLon) / 2;
-            const cLat = (b.minLat + b.maxLat) / 2;
+            const rLon = (b.minLon + b.maxLon) / 2;
+            const rLat = (b.minLat + b.maxLat) / 2;
             const spanLon = b.maxLon - b.minLon;
             const spanLat = b.maxLat - b.minLat;
             const span = Math.max(spanLon, spanLat);
-            // Rough zoom: smaller span = more zoom
-            const zoom = span < 1 ? 8 : span < 2 ? 7 : span < 3 ? 6.5 : span < 4 ? 6 : 5.5;
-            return { center: { lon: cLon, lat: cLat }, zoom };
+            const fullZoom = span < 1 ? 8 : span < 2 ? 7 : span < 3 ? 6.5 : span < 4 ? 6 : 5.5;
+            // Gentle 25% zoom toward region
+            const baseZoom = 4.8;
+            const zoom = baseZoom + 0.25 * (fullZoom - baseZoom);
+            const center = {
+                lon: TX_CENTER.lon + 0.25 * (rLon - TX_CENTER.lon),
+                lat: TX_CENTER.lat + 0.25 * (rLat - TX_CENTER.lat)
+            };
+            return { center, zoom };
         }
 
         function showError(message) {
@@ -387,20 +436,11 @@
         function populateSelects() {
             if (allData.demands.length === 0) return;
             const regions = [...new Set(allData.demands.map(d => d.WugRegion))].filter(Boolean).sort();
-            const wugTypes = [...new Set(allData.demands.map(d => d.WugType))].filter(Boolean).sort();
-
             const regionSelect = document.getElementById('regionSelect');
-            const wugSelect = document.getElementById('wugTypeSelect');
-
             regions.forEach(r => {
                 const o = document.createElement('option');
                 o.value = r; o.textContent = `Region ${r}`;
                 regionSelect.appendChild(o);
-            });
-            wugTypes.forEach(w => {
-                const o = document.createElement('option');
-                o.value = w; o.textContent = sectorLabels[w] || w;
-                wugSelect.appendChild(o);
             });
         }
 
@@ -426,6 +466,7 @@
 
             updateInsights(year, region);
             updateCountyMap();
+            updateSectorBreakdown(year, region);
             updateRegionalBalance(year, region);
             updateStatewideProjection(region);
             updateRiskTable(year, region);
@@ -463,7 +504,7 @@
             document.getElementById('insightPopLabel').textContent = `People in At-Risk Counties`;
         }
 
-        // --- County Map (single map, zooms to region when selected) ---
+        // --- County Map (toggle between counties & regions view, gentle zoom on region select) ---
         function updateCountyMap() {
             if (!txGeojson || allData.demands.length === 0) return;
 
@@ -472,52 +513,72 @@
             const region = document.getElementById('regionSelect').value;
             const cfg = colorConfigs[metric];
 
-            const demandAgg = aggregateByCounty(allData.demands, 'D', year, region);
-            const needsAgg = aggregateByCounty(allData.needs, 'N', year, region);
-            const popAgg = aggregateByCounty(allData.population, 'P', year, region);
-            const supplyAgg = aggregateByCounty(allData.existing, 'WS', year, region);
-
+            // Always aggregate ALL counties (map always shows full state)
+            const demandAgg = aggregateByCounty(allData.demands, 'D', year, '');
+            const needsAgg = aggregateByCounty(allData.needs, 'N', year, '');
+            const popAgg = aggregateByCounty(allData.population, 'P', year, '');
+            const supplyAgg = aggregateByCounty(allData.existing, 'WS', year, '');
             const metricAgg = { needs: needsAgg, demand: demandAgg, population: popAgg, supply: supplyAgg }[metric];
 
-            // Filter features to selected region if applicable
-            const features = region
-                ? txGeojson.features.filter(f => countyToRegion[f.properties.NAME.toUpperCase()] === region)
-                : txGeojson.features;
-
-            const filteredGeojson = { type: 'FeatureCollection', features };
-
+            const features = txGeojson.features;
             const locations = [], rawValues = [], hoverTexts = [];
 
-            features.forEach(f => {
-                const name = f.properties.NAME.toUpperCase();
-                locations.push(f.id);
-                rawValues.push((metricAgg[name] || {}).total || 0);
+            if (mapViewMode === 'regions') {
+                // Aggregate by region
+                const rTotals = {}, rDemand = {}, rSupply = {}, rNeeds = {}, rPop = {};
+                for (const [c, d] of Object.entries(metricAgg)) { const r = countyToRegion[c]; if (r) rTotals[r] = (rTotals[r] || 0) + d.total; }
+                for (const [c, d] of Object.entries(demandAgg)) { const r = countyToRegion[c]; if (r) rDemand[r] = (rDemand[r] || 0) + d.total; }
+                for (const [c, d] of Object.entries(supplyAgg)) { const r = countyToRegion[c]; if (r) rSupply[r] = (rSupply[r] || 0) + d.total; }
+                for (const [c, d] of Object.entries(needsAgg)) { const r = countyToRegion[c]; if (r) rNeeds[r] = (rNeeds[r] || 0) + d.total; }
+                for (const [c, d] of Object.entries(popAgg)) { const r = countyToRegion[c]; if (r) rPop[r] = (rPop[r] || 0) + d.total; }
 
-                const demand = (demandAgg[name] || {}).total || 0;
-                const needs = (needsAgg[name] || {}).total || 0;
-                const pop = (popAgg[name] || {}).total || 0;
-                const supply = (supplyAgg[name] || {}).total || 0;
-                const r = countyToRegion[name] || 'N/A';
-
-                hoverTexts.push(
-                    `<b>${f.properties.NAME} County</b><br>` +
-                    `Region: ${r}<br>` +
-                    `Population: ${pop.toLocaleString()}<br>` +
-                    `Demand: ${demand.toLocaleString()} ac-ft<br>` +
-                    `Supply: ${supply.toLocaleString()} ac-ft<br>` +
-                    `Needs: ${needs.toLocaleString()} ac-ft`
-                );
-            });
+                features.forEach(f => {
+                    const name = f.properties.NAME.toUpperCase();
+                    const r = countyToRegion[name] || '';
+                    locations.push(f.id);
+                    rawValues.push(rTotals[r] || 0);
+                    hoverTexts.push(
+                        `<b>Region ${r}</b><br>` +
+                        `Population: ${(rPop[r] || 0).toLocaleString()}<br>` +
+                        `Demand: ${(rDemand[r] || 0).toLocaleString()} ac-ft<br>` +
+                        `Supply: ${(rSupply[r] || 0).toLocaleString()} ac-ft<br>` +
+                        `Needs: ${(rNeeds[r] || 0).toLocaleString()} ac-ft`
+                    );
+                });
+            } else {
+                // Counties view
+                features.forEach(f => {
+                    const name = f.properties.NAME.toUpperCase();
+                    locations.push(f.id);
+                    rawValues.push((metricAgg[name] || {}).total || 0);
+                    const demand = (demandAgg[name] || {}).total || 0;
+                    const needs = (needsAgg[name] || {}).total || 0;
+                    const pop = (popAgg[name] || {}).total || 0;
+                    const supply = (supplyAgg[name] || {}).total || 0;
+                    const r = countyToRegion[name] || 'N/A';
+                    hoverTexts.push(
+                        `<b>${f.properties.NAME} County</b><br>` +
+                        `Region: ${r}<br>` +
+                        `Population: ${pop.toLocaleString()}<br>` +
+                        `Demand: ${demand.toLocaleString()} ac-ft<br>` +
+                        `Supply: ${supply.toLocaleString()} ac-ft<br>` +
+                        `Needs: ${needs.toLocaleString()} ac-ft`
+                    );
+                });
+            }
 
             const logValues = rawValues.map(v => Math.log10(v + 1));
             const maxLog = Math.max(...logValues) || 1;
             const { ticktext } = buildTicks(maxLog, 5);
 
+            const lineW = mapViewMode === 'regions' ? 0.3 : 0.5;
+            const lineC = mapViewMode === 'regions' ? '#999' : '#444';
+
             const trace = {
-                type: 'choroplethmapbox', geojson: filteredGeojson,
+                type: 'choroplethmapbox', geojson: txGeojson,
                 locations, z: logValues, text: hoverTexts, hoverinfo: 'text',
                 colorscale: cfg.scale, zmin: 0, zmax: maxLog, showscale: false,
-                marker: { line: { width: 0.5, color: '#444' } }
+                marker: { line: { width: lineW, color: lineC } }
             };
 
             const view = getRegionView(region);
@@ -537,9 +598,9 @@
             Plotly.newPlot('countyMap', [trace], layout, { responsive: true });
             buildHTMLLegend(cfg, ticktext);
 
-            const numCounties = features.length;
+            const viewLabel = mapViewMode === 'regions' ? 'Regions' : 'Counties';
             document.getElementById('countyMapTitle').textContent =
-                region ? `Region ${region} — ${numCounties} Counties` : `All Texas — 254 Counties`;
+                region ? `Region ${region} — ${viewLabel} View` : `All Texas — ${viewLabel} View`;
         }
 
         // --- Legend builder ---
@@ -560,6 +621,48 @@
             const ticksEl = document.getElementById('legendTicks');
             ticksEl.innerHTML = '';
             ticktext.forEach(t => { const s = document.createElement('span'); s.textContent = t; ticksEl.appendChild(s); });
+        }
+
+        // --- Sector breakdown ---
+        function updateSectorBreakdown(year, region) {
+            const sectorTotals = {};
+            let grandTotal = 0;
+            allData.demands.forEach(row => {
+                if (region && row.WugRegion !== region) return;
+                const sector = row.WugType || 'OTHER';
+                const val = parseFloat(row[`D${year}`]) || 0;
+                sectorTotals[sector] = (sectorTotals[sector] || 0) + val;
+                grandTotal += val;
+            });
+
+            const barEl = document.getElementById('sectorBar');
+            const legendEl = document.getElementById('sectorLegend');
+            if (grandTotal === 0) { barEl.innerHTML = ''; legendEl.innerHTML = ''; return; }
+
+            const sorted = Object.entries(sectorTotals).sort((a, b) => b[1] - a[1]);
+
+            barEl.innerHTML = '';
+            sorted.forEach(([sector, val]) => {
+                const pct = val / grandTotal * 100;
+                if (pct < 0.5) return;
+                const seg = document.createElement('div');
+                seg.className = 'sector-segment';
+                seg.style.width = pct + '%';
+                seg.style.background = sectorColors[sector] || '#999';
+                seg.textContent = pct >= 8 ? Math.round(pct) + '%' : '';
+                seg.title = `${sectorLabels[sector] || sector}: ${Math.round(val).toLocaleString()} ac-ft (${pct.toFixed(1)}%)`;
+                barEl.appendChild(seg);
+            });
+
+            legendEl.innerHTML = '';
+            sorted.forEach(([sector, val]) => {
+                const pct = val / grandTotal * 100;
+                if (pct < 0.5) return;
+                const item = document.createElement('span');
+                item.className = 'sector-legend-item';
+                item.innerHTML = `<span class="sector-dot" style="background:${sectorColors[sector] || '#999'}"></span>${sectorLabels[sector] || sector} ${Math.round(pct)}%`;
+                legendEl.appendChild(item);
+            });
         }
 
         // --- Charts ---
