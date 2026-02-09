@@ -319,6 +319,7 @@
     <script>
         let allData = { demands: [], existing: [], needs: [], population: [], strategies: [] };
         let txGeojson = null;
+        let txRegionsGeojson = null; // dissolved region boundaries for overlay
         let countyToRegion = {};   // "TRAVIS" -> "G"
         let regionBounds = {};     // "G" -> { minLon, maxLon, minLat, maxLat }
         const TX_CENTER = { lon: -99.5, lat: 31.5 };
@@ -361,7 +362,7 @@
         // --- Init ---
         async function initDashboard() {
             try {
-                await Promise.all([loadCSVFiles(), loadTexasGeojson()]);
+                await Promise.all([loadCSVFiles(), loadTexasGeojson(), loadRegionsGeojson()]);
                 buildCountyRegionMap();
                 buildRegionBounds();
                 populateSelects();
@@ -393,6 +394,14 @@
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 txGeojson = await resp.json();
             } catch (e) { console.warn('Could not load GeoJSON:', e); }
+        }
+
+        async function loadRegionsGeojson() {
+            try {
+                const resp = await fetch('data/tx-regions.geojson');
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                txRegionsGeojson = await resp.json();
+            } catch (e) { console.warn('Could not load regions GeoJSON:', e); }
         }
 
         function buildCountyRegionMap() {
@@ -599,7 +608,7 @@
                     type: 'choroplethmapbox', geojson: txGeojson,
                     locations: locs, z: zVals, text: hover, hoverinfo: 'text',
                     colorscale: cfg.scale, zmin: 0, zmax: maxLogR, showscale: false,
-                    marker: { line: { width: 0.3, color: 'rgba(255,255,255,0.6)' } }
+                    marker: { line: { width: 0.15, color: 'rgba(255,255,255,0.3)' } }
                 });
 
                 // Region labels at centroids
@@ -673,11 +682,24 @@
             const w = mapEl.parentElement.clientWidth;
             const h = w < 500 ? 350 : 550;
 
+            // Add thick region boundary lines in Regions mode
+            const mapboxLayers = [];
+            if (mapViewMode === 'regions' && txRegionsGeojson) {
+                mapboxLayers.push({
+                    sourcetype: 'geojson',
+                    source: txRegionsGeojson,
+                    type: 'line',
+                    color: '#222',
+                    line: { width: 2.5 }
+                });
+            }
+
             const layout = {
                 mapbox: {
                     style: 'open-street-map',
                     center: TX_CENTER,
-                    zoom: w < 400 ? 4.0 : 4.8
+                    zoom: w < 400 ? 4.0 : 4.8,
+                    layers: mapboxLayers
                 },
                 margin: { t: 0, b: 0, l: 0, r: 0 }, height: h, autosize: true
             };
