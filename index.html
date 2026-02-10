@@ -337,10 +337,15 @@
             </div>
         </div>
 
+        <div class="chart-box" style="margin-bottom: 12px;">
+            <div class="chart-title">Where Does the Water Go? — Supply vs. Demand by Sector</div>
+            <div class="chart" id="sankeyChart" style="height:420px;"></div>
+        </div>
+
         <div class="charts-grid">
             <div class="chart-box">
-                <div class="chart-title">Industrial Facilities in Water-Stressed Counties</div>
-                <div class="chart" id="overlapBarChart"></div>
+                <div class="chart-title">Risk Matrix — Water Stress vs. Industrial Concentration</div>
+                <div class="chart" id="riskMatrixChart"></div>
             </div>
             <div class="chart-box">
                 <div class="chart-title" id="projectionChartTitle">Statewide Projection (2020-2070)</div>
@@ -349,8 +354,19 @@
         </div>
 
         <div class="chart-box" style="margin-bottom: 12px;">
-            <div class="chart-title">Water Deficit vs. Industrial Concentration</div>
-            <div class="chart" id="overlapScatterChart" style="height:450px;"></div>
+            <div class="chart-title" id="paretoTitle">Pareto Analysis — Concentration of Deficit & Industrial Facilities</div>
+            <div class="chart" id="paretoChart" style="height:400px;"></div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-box">
+                <div class="chart-title" id="regressionTitle">Correlation — Facilities vs. Water Deficit (R² = ...)</div>
+                <div class="chart" id="regressionChart"></div>
+            </div>
+            <div class="chart-box">
+                <div class="chart-title">Distribution — Deficit in Industrial vs. Non-Industrial Counties</div>
+                <div class="chart" id="distributionChart"></div>
+            </div>
         </div>
 
         <div class="chart-box" style="margin-bottom: 20px;">
@@ -995,100 +1011,308 @@
                 ? (popInOverlap / 1e6).toFixed(1) + 'M'
                 : Math.round(popInOverlap).toLocaleString();
 
-            // --- Chart A: Industrial Facilities in Water-Stressed Counties (horizontal stacked bar) ---
+            // --- Build county data for Risk Matrix and Pareto ---
             const countyData = [];
-            for (const c of new Set([...Object.keys(dcByCounty), ...Object.keys(fabByCounty)])) {
+            const allCountyKeys = new Set([
+                ...Object.keys(waterByCounty),
+                ...Object.keys(dcByCounty),
+                ...Object.keys(fabByCounty)
+            ]);
+            for (const c of allCountyKeys) {
                 const dc = dcByCounty[c] || 0;
                 const fab = fabByCounty[c] || 0;
-                const w = waterByCounty[c] || { needs: 0, demand: 0 };
+                const w = waterByCounty[c] || { needs: 0, demand: 0, pop: 0, supply: 0 };
                 const tier = getDeficitTier(w.needs, w.demand);
-                countyData.push({ county: c, dc, fab, total: dc + fab, needs: w.needs, demand: w.demand, tier });
+                countyData.push({ county: c, dc, fab, total: dc + fab, needs: w.needs, demand: w.demand, pop: w.pop, tier });
             }
-            countyData.sort((a, b) => b.total - a.total);
-            const top15 = countyData.slice(0, 15).reverse();
 
-            const barTraces = [
-                {
-                    y: top15.map(c => c.county), x: top15.map(c => c.dc),
-                    name: 'Data Centers', type: 'bar', orientation: 'h',
-                    marker: { color: '#00e5ff' },
-                    hovertemplate: '<b>%{y}</b><br>Data Centers: %{x}<extra></extra>'
-                },
-                {
-                    y: top15.map(c => c.county), x: top15.map(c => c.fab),
-                    name: 'Semiconductor Fabs', type: 'bar', orientation: 'h',
-                    marker: { color: '#ffea00' },
-                    hovertemplate: '<b>%{y}</b><br>Semiconductor Fabs: %{x}<extra></extra>'
-                }
-            ];
-
-            // Add tier annotations on the right side of each bar
-            const barAnnotations = top15.map(c => ({
-                x: c.total + 0.3,
-                y: c.county,
-                text: `<b style="color:${c.tier.color}">${c.tier.name}</b>`,
-                showarrow: false,
-                xanchor: 'left',
-                font: { size: 11, color: c.tier.color }
-            }));
-
-            const barLayout = {
-                barmode: 'stack',
-                xaxis: { title: 'Number of Facilities', range: [0, Math.max(...top15.map(c => c.total)) + 3] },
-                yaxis: { title: '', automargin: true },
-                legend: { orientation: 'h', y: -0.15 },
-                margin: { t: 10, b: 60, l: 120, r: 80 },
-                hovermode: 'y unified',
-                annotations: barAnnotations
-            };
-            Plotly.newPlot('overlapBarChart', barTraces, barLayout, chartConfig);
-
-            // --- Chart B: Scatter — Water Deficit vs Industrial Concentration ---
-            // Group by tier for separate traces (gives us a proper legend)
-            const scatterByTier = {};
-            countyData.forEach(c => {
-                if (c.needs <= 0 && c.total <= 0) return;
-                const tierName = c.tier.name;
-                if (!scatterByTier[tierName]) scatterByTier[tierName] = { data: [], tier: c.tier };
-                scatterByTier[tierName].data.push(c);
+            // --- SANKEY: Where does the water go? ---
+            const sectorDemand = {}, sectorSupply = {}, sectorNeeds = {};
+            allData.demands.forEach(row => {
+                if (region && row.WugRegion !== region) return;
+                const s = row.WugType || 'OTHER';
+                sectorDemand[s] = (sectorDemand[s] || 0) + (parseFloat(row[`D${year}`]) || 0);
+            });
+            allData.existing.forEach(row => {
+                if (region && row.WugRegion !== region) return;
+                const s = row.WugType || 'OTHER';
+                sectorSupply[s] = (sectorSupply[s] || 0) + (parseFloat(row[`WS${year}`]) || 0);
+            });
+            allData.needs.forEach(row => {
+                if (region && row.WugRegion !== region) return;
+                const s = row.WugType || 'OTHER';
+                sectorNeeds[s] = (sectorNeeds[s] || 0) + (parseFloat(row[`N${year}`]) || 0);
             });
 
-            const maxPop = Math.max(...countyData.map(c => (waterByCounty[c.county] || {}).pop || 0), 1);
+            const sectors = Object.keys(sectorDemand).filter(s => sectorDemand[s] > 0).sort((a, b) => sectorDemand[b] - sectorDemand[a]);
+            const sColors = { 'MUNICIPAL':'#2171b5', 'IRRIGATION':'#238b45', 'LIVESTOCK':'#d4a017', 'MANUFACTURING':'#e65100', 'MINING':'#6a1b9a', 'STEAM ELECTRIC POWER':'#c62828' };
 
-            const scatterTraces = Object.entries(scatterByTier).map(([tierName, { data, tier }]) => ({
-                x: data.map(c => c.total),
-                y: data.map(c => c.needs),
-                text: data.map(c => {
-                    const w = waterByCounty[c.county] || { pop: 0, demand: 0, supply: 0 };
-                    return `<b>${c.county}</b><br>` +
-                        `Severity: ${tier.name} (${c.tier.pct.toFixed(1)}%)<br>` +
-                        `Facilities: ${c.total} (${c.dc} DC, ${c.fab} Fab)<br>` +
-                        `Water Deficit: ${Math.round(c.needs).toLocaleString()} ac-ft<br>` +
-                        `Population: ${Math.round(w.pop).toLocaleString()}`;
-                }),
-                hoverinfo: 'text',
-                mode: 'markers',
-                name: tierName,
-                marker: {
-                    size: data.map(c => {
-                        const pop = (waterByCounty[c.county] || {}).pop || 0;
-                        return Math.max(8, Math.sqrt(pop / maxPop) * 60);
-                    }),
-                    color: tier.color,
-                    line: { width: 1, color: '#333' },
-                    opacity: 0.85
+            // Nodes: 0=Existing Supply, 1..N=sectors, N+1=Demand Met, N+2=Water Deficit
+            const sNodes = ['Existing Supply', ...sectors.map(s => sectorLabels[s] || s), 'Demand Met', 'Water Deficit'];
+            const sNodeColors = ['#2171b5', ...sectors.map(s => sColors[s] || '#999'), '#238b45', '#b71c1c'];
+            const sLinks = { source: [], target: [], value: [], color: [] };
+            const metIdx = sectors.length + 1;
+            const defIdx = sectors.length + 2;
+
+            sectors.forEach((s, i) => {
+                const supplied = sectorSupply[s] || 0;
+                const unmet = sectorNeeds[s] || 0;
+                const met = Math.max(0, supplied - unmet);
+                // Supply → Sector
+                if (supplied > 0) {
+                    sLinks.source.push(0); sLinks.target.push(i + 1);
+                    sLinks.value.push(supplied);
+                    sLinks.color.push((sColors[s] || '#999') + '55');
+                }
+                // Sector → Met
+                if (met > 0) {
+                    sLinks.source.push(i + 1); sLinks.target.push(metIdx);
+                    sLinks.value.push(met);
+                    sLinks.color.push('rgba(35,139,69,0.3)');
+                }
+                // Sector → Deficit
+                if (unmet > 0) {
+                    sLinks.source.push(i + 1); sLinks.target.push(defIdx);
+                    sLinks.value.push(unmet);
+                    sLinks.color.push('rgba(183,28,28,0.4)');
+                }
+            });
+
+            Plotly.newPlot('sankeyChart', [{
+                type: 'sankey',
+                orientation: 'h',
+                node: {
+                    label: sNodes,
+                    color: sNodeColors,
+                    pad: 20, thickness: 25,
+                    line: { color: '#333', width: 0.5 },
+                    hovertemplate: '<b>%{label}</b><br>%{value:,.0f} ac-ft<extra></extra>'
                 },
-                type: 'scatter'
-            }));
+                link: {
+                    source: sLinks.source, target: sLinks.target,
+                    value: sLinks.value, color: sLinks.color,
+                    hovertemplate: '%{source.label} → %{target.label}<br>%{value:,.0f} ac-ft<extra></extra>'
+                }
+            }], { margin: { t: 10, b: 10, l: 10, r: 10 } }, chartConfig);
 
-            const scatterLayout = {
-                xaxis: { title: 'Number of Industrial Facilities', zeroline: true },
-                yaxis: { title: 'Water Deficit (acre-ft)', zeroline: true },
-                margin: { t: 10, b: 60, l: 80, r: 30 },
-                hovermode: 'closest',
-                legend: { orientation: 'h', y: -0.12 }
-            };
-            Plotly.newPlot('overlapScatterChart', scatterTraces, scatterLayout, chartConfig);
+            // --- RISK MATRIX: Water Stress × Industrial Concentration ---
+            const stressLabels = ['None', 'Low', 'Moderate', 'Severe', 'Critical'];
+            const facilityBins = ['0', '1-3', '4-10', '10+'];
+            const getFacilityBin = n => n === 0 ? 0 : n <= 3 ? 1 : n <= 10 ? 2 : 3;
+            const getStressBin = tier => stressLabels.indexOf(tier.name);
+
+            // Build matrix: rows=stress(y), cols=facilities(x)
+            const matrix = Array.from({length: 5}, () => Array(4).fill(0));
+            const matrixCounties = Array.from({length: 5}, () => Array.from({length: 4}, () => []));
+
+            countyData.forEach(c => {
+                const si = getStressBin(c.tier);
+                const fi = getFacilityBin(c.total);
+                if (si >= 0) {
+                    matrix[si][fi]++;
+                    matrixCounties[si][fi].push(c.county);
+                }
+            });
+
+            const hoverText = matrix.map((row, si) =>
+                row.map((count, fi) => {
+                    const top3 = matrixCounties[si][fi].slice(0, 3).join(', ');
+                    return `<b>${stressLabels[si]} Stress × ${facilityBins[fi]} Facilities</b><br>` +
+                        `Counties: ${count}` + (top3 ? `<br>e.g. ${top3}` : '');
+                })
+            );
+
+            Plotly.newPlot('riskMatrixChart', [{
+                z: matrix,
+                x: facilityBins,
+                y: stressLabels,
+                type: 'heatmap',
+                colorscale: [[0,'#e8f5e9'],[0.2,'#fff9c4'],[0.4,'#ffe082'],[0.6,'#ffab91'],[0.8,'#ef5350'],[1,'#b71c1c']],
+                text: hoverText,
+                hoverinfo: 'text',
+                showscale: true,
+                colorbar: { title: 'Counties', thickness: 15 },
+                texttemplate: '%{z}',
+                textfont: { size: 16, color: '#333' }
+            }], {
+                xaxis: { title: 'Industrial Facilities per County', side: 'bottom' },
+                yaxis: { title: 'Water Stress Level', autorange: true },
+                margin: { t: 10, b: 60, l: 100, r: 20 },
+                annotations: [{
+                    x: 3, y: 4, text: '<b>DANGER<br>ZONE</b>', showarrow: false,
+                    font: { size: 14, color: 'rgba(255,255,255,0.8)' }
+                }]
+            }, chartConfig);
+
+            // --- PARETO: Concentration of deficit and facilities ---
+            const paretoData = countyData
+                .filter(c => c.needs > 0)
+                .sort((a, b) => b.needs - a.needs);
+
+            const totalDeficit = paretoData.reduce((s, c) => s + c.needs, 0);
+            const totalFacilities = paretoData.reduce((s, c) => s + c.total, 0);
+
+            let cumDeficit = 0, cumFacilities = 0;
+            const paretoX = [], cumDefPct = [], cumFacPct = [], paretoHover = [];
+
+            paretoData.forEach((c, i) => {
+                cumDeficit += c.needs;
+                cumFacilities += c.total;
+                paretoX.push(i + 1);
+                cumDefPct.push((cumDeficit / totalDeficit) * 100);
+                cumFacPct.push(totalFacilities > 0 ? (cumFacilities / totalFacilities) * 100 : 0);
+                paretoHover.push(
+                    `<b>${c.county}</b><br>` +
+                    `Deficit: ${Math.round(c.needs).toLocaleString()} ac-ft<br>` +
+                    `Facilities: ${c.total}<br>` +
+                    `Cum. Deficit: ${(cumDeficit / totalDeficit * 100).toFixed(1)}%<br>` +
+                    `Cum. Facilities: ${totalFacilities > 0 ? (cumFacilities / totalFacilities * 100).toFixed(1) : 0}%`
+                );
+            });
+
+            // Find 80% threshold
+            const idx80 = cumDefPct.findIndex(p => p >= 80);
+            const paretoAnnotations = idx80 >= 0 ? [{
+                x: idx80 + 1, y: 80,
+                text: `<b>${idx80 + 1} counties = 80% of deficit</b>`,
+                showarrow: true, arrowhead: 2,
+                ax: 60, ay: -40,
+                font: { size: 12, color: '#b71c1c' }
+            }] : [];
+
+            Plotly.newPlot('paretoChart', [
+                {
+                    x: paretoX, y: cumDefPct, name: 'Cumulative Deficit %',
+                    type: 'scatter', mode: 'lines',
+                    line: { color: '#b71c1c', width: 3 },
+                    text: paretoHover, hoverinfo: 'text'
+                },
+                {
+                    x: paretoX, y: cumFacPct, name: 'Cumulative Facilities %',
+                    type: 'scatter', mode: 'lines',
+                    line: { color: '#667eea', width: 2, dash: 'dash' },
+                    hoverinfo: 'skip'
+                },
+                {
+                    x: [0, paretoX.length], y: [80, 80], name: '80% Line',
+                    type: 'scatter', mode: 'lines',
+                    line: { color: '#999', width: 1, dash: 'dot' },
+                    hoverinfo: 'skip', showlegend: false
+                }
+            ], {
+                xaxis: { title: 'Counties (ranked by deficit)' },
+                yaxis: { title: 'Cumulative %', range: [0, 105] },
+                legend: { orientation: 'h', y: -0.15 },
+                margin: { t: 10, b: 60, l: 60, r: 20 },
+                hovermode: 'x unified',
+                annotations: paretoAnnotations
+            }, chartConfig);
+
+            document.getElementById('paretoTitle').textContent = totalFacilities > 0
+                ? `Pareto Analysis — ${idx80 >= 0 ? idx80 + 1 : '?'} counties hold 80% of deficit`
+                : 'Pareto Analysis — Concentration of Water Deficit';
+
+            // --- REGRESSION: Facilities vs Deficit with R² ---
+            const regData = countyData.filter(c => c.needs > 0 || c.total > 0);
+            if (regData.length > 2) {
+                const xVals = regData.map(c => c.total);
+                const yVals = regData.map(c => c.needs);
+
+                // Compute linear regression y = mx + b
+                const n = xVals.length;
+                const sumX = xVals.reduce((a, b) => a + b, 0);
+                const sumY = yVals.reduce((a, b) => a + b, 0);
+                const sumXY = xVals.reduce((a, v, i) => a + v * yVals[i], 0);
+                const sumX2 = xVals.reduce((a, v) => a + v * v, 0);
+                const sumY2 = yVals.reduce((a, v) => a + v * v, 0);
+
+                const denom = (n * sumX2 - sumX * sumX);
+                const m = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
+                const b = (sumY - m * sumX) / n;
+
+                // R²
+                const ssRes = yVals.reduce((a, y, i) => { const pred = m * xVals[i] + b; return a + (y - pred) ** 2; }, 0);
+                const meanY = sumY / n;
+                const ssTot = yVals.reduce((a, y) => a + (y - meanY) ** 2, 0);
+                const r2 = ssTot > 0 ? (1 - ssRes / ssTot) : 0;
+
+                // Regression line endpoints
+                const xMin = 0;
+                const xMax = Math.max(...xVals);
+                const regLineX = [xMin, xMax];
+                const regLineY = [m * xMin + b, m * xMax + b];
+
+                // Color by tier
+                const markerColors = regData.map(c => c.tier.color);
+                const hoverReg = regData.map(c =>
+                    `<b>${c.county}</b><br>` +
+                    `Facilities: ${c.total} (DC: ${c.dc}, Fab: ${c.fab})<br>` +
+                    `Deficit: ${Math.round(c.needs).toLocaleString()} ac-ft<br>` +
+                    `Stress: ${c.tier.name} (${c.tier.pct.toFixed(1)}%)`
+                );
+
+                Plotly.newPlot('regressionChart', [
+                    {
+                        x: xVals, y: yVals, mode: 'markers', type: 'scatter',
+                        name: 'Counties',
+                        marker: { size: 8, color: markerColors, opacity: 0.75, line: { width: 0.5, color: '#333' } },
+                        text: hoverReg, hoverinfo: 'text'
+                    },
+                    {
+                        x: regLineX, y: regLineY, mode: 'lines', type: 'scatter',
+                        name: `Regression (R²=${r2.toFixed(3)})`,
+                        line: { color: '#667eea', width: 2, dash: 'dash' },
+                        hoverinfo: 'skip'
+                    }
+                ], {
+                    xaxis: { title: 'Industrial Facilities (Data Centers + Fabs)' },
+                    yaxis: { title: 'Water Deficit (ac-ft)' },
+                    legend: { orientation: 'h', y: -0.2 },
+                    margin: { t: 10, b: 70, l: 70, r: 20 },
+                    annotations: [{
+                        x: 0.95, y: 0.95, xref: 'paper', yref: 'paper',
+                        text: `<b>R² = ${r2.toFixed(3)}</b><br>n = ${n}`,
+                        showarrow: false, font: { size: 14, color: '#333' },
+                        bgcolor: 'rgba(255,255,255,0.85)', bordercolor: '#667eea', borderwidth: 1, borderpad: 6
+                    }]
+                }, chartConfig);
+
+                document.getElementById('regressionTitle').textContent =
+                    `Correlation — Facilities vs. Water Deficit (R² = ${r2.toFixed(3)})`;
+            }
+
+            // --- DISTRIBUTION: Industrial vs Non-Industrial counties ---
+            const withFacilities = countyData.filter(c => c.total > 0 && c.demand > 0);
+            const withoutFacilities = countyData.filter(c => c.total === 0 && c.demand > 0);
+
+            // Per-capita deficit (needs / population) — more meaningful comparison
+            const deficitPctWith = withFacilities.map(c => c.demand > 0 ? (c.needs / c.demand) * 100 : 0);
+            const deficitPctWithout = withoutFacilities.map(c => c.demand > 0 ? (c.needs / c.demand) * 100 : 0);
+
+            const avgWith = deficitPctWith.length > 0 ? deficitPctWith.reduce((a, b) => a + b, 0) / deficitPctWith.length : 0;
+            const avgWithout = deficitPctWithout.length > 0 ? deficitPctWithout.reduce((a, b) => a + b, 0) / deficitPctWithout.length : 0;
+
+            Plotly.newPlot('distributionChart', [
+                {
+                    y: deficitPctWith, type: 'box', name: `With Facilities (n=${withFacilities.length})`,
+                    marker: { color: '#e65100' }, boxmean: true,
+                    hoverinfo: 'y', jitter: 0.3, pointpos: -1.5, boxpoints: 'all'
+                },
+                {
+                    y: deficitPctWithout, type: 'box', name: `Without Facilities (n=${withoutFacilities.length})`,
+                    marker: { color: '#2171b5' }, boxmean: true,
+                    hoverinfo: 'y', jitter: 0.3, pointpos: -1.5, boxpoints: 'all'
+                }
+            ], {
+                yaxis: { title: 'Deficit as % of Demand' },
+                legend: { orientation: 'h', y: -0.15 },
+                margin: { t: 10, b: 50, l: 60, r: 20 },
+                annotations: [{
+                    x: 0.5, y: 1.02, xref: 'paper', yref: 'paper',
+                    text: `<b>Mean: ${avgWith.toFixed(1)}%</b> (industrial) vs <b>${avgWithout.toFixed(1)}%</b> (non-industrial)`,
+                    showarrow: false, font: { size: 12, color: '#333' }
+                }]
+            }, chartConfig);
         }
 
         function updateStatewideProjection(region) {
