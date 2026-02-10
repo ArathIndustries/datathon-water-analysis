@@ -670,9 +670,9 @@
                     colorscale: cfg.scale, zmin: 0, zmax: maxLogR,
                     showscale: true,
                     colorbar: {
-                        title: { text: cfg.label, font: { size: 11 } },
-                        orientation: 'h', x: 0.5, y: -0.02,
-                        len: 0.7, thickness: 12,
+                        title: { text: cfg.label, side: 'right', font: { size: 11 } },
+                        orientation: 'v', x: 1.01, y: 0.3,
+                        len: 0.5, thickness: 14, yanchor: 'middle',
                         tickvals: rTicks.vals, ticktext: rTicks.text, tickfont: { size: 10 }
                     },
                     marker: { line: { width: 0.15, color: 'rgba(255,255,255,0.3)' } }
@@ -736,9 +736,9 @@
                     colorscale: cfg.scale, zmin: 0, zmax: maxLogAll,
                     showscale: true,
                     colorbar: {
-                        title: { text: cfg.label, font: { size: 11 } },
-                        orientation: 'h', x: 0.5, y: -0.02,
-                        len: 0.7, thickness: 12,
+                        title: { text: cfg.label, side: 'right', font: { size: 11 } },
+                        orientation: 'v', x: 1.01, y: 0.3,
+                        len: 0.5, thickness: 14, yanchor: 'middle',
                         tickvals: cTicks.vals, ticktext: cTicks.text, tickfont: { size: 10 }
                     },
                     marker: { line: { width: 0.5, color: '#444' } }
@@ -771,7 +771,7 @@
                     zoom: w < 400 ? 4.0 : 4.8,
                     layers: mapboxLayers
                 },
-                margin: { t: 0, b: 40, l: 0, r: 0 }, height: h, autosize: true
+                margin: { t: 0, b: 0, l: 0, r: 90 }, height: h, autosize: true
             };
 
             // Data center scatter overlay
