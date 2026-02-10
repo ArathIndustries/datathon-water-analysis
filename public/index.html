@@ -1163,13 +1163,13 @@
                 }
             ], {
                 yaxis: { title: 'Severity Score (%)', rangemode: 'tozero' },
-                legend: { orientation: 'h', y: -0.15 },
-                margin: { t: 10, b: 50, l: 60, r: 20 },
+                legend: { orientation: 'h', y: -0.12 },
+                margin: { t: 10, b: 80, l: 60, r: 20 },
                 shapes: distShapes,
                 annotations: [
                     ...distTierLabels,
                     {
-                        x: 0.5, y: 1.02, xref: 'paper', yref: 'paper',
+                        x: 0.5, y: -0.18, xref: 'paper', yref: 'paper',
                         text: `<b>Mean: ${avgWith.toFixed(1)}%</b> (industrial) vs <b>${avgWithout.toFixed(1)}%</b> (non-industrial)`,
                         showarrow: false, font: { size: 12, color: '#333' }
                     }
