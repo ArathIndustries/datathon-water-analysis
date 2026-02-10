@@ -647,7 +647,8 @@
                         len: 0.5, thickness: 14, yanchor: 'middle',
                         tickvals: rTicks.vals, ticktext: rTicks.text, tickfont: { size: 10 }
                     },
-                    marker: { line: { width: 0.15, color: 'rgba(255,255,255,0.3)' } }
+                    marker: { line: { width: 0.15, color: 'rgba(255,255,255,0.3)' } },
+                    showlegend: false
                 });
 
                 // Region labels at centroids
@@ -665,7 +666,7 @@
                     type: 'scattermapbox', lon: lons, lat: lats, text: labels,
                     mode: 'text', textposition: 'middle center',
                     textfont: { size: lSizes, color: lColors, family: 'Arial Black, sans-serif' },
-                    hoverinfo: 'none'
+                    hoverinfo: 'none', showlegend: false
                 });
 
                 document.getElementById('regionLegend').style.display = 'none';
@@ -713,7 +714,8 @@
                         len: 0.5, thickness: 14, yanchor: 'middle',
                         tickvals: cTicks.vals, ticktext: cTicks.text, tickfont: { size: 10 }
                     },
-                    marker: { line: { width: 0.5, color: '#444' } }
+                    marker: { line: { width: 0.5, color: '#444' } },
+                    showlegend: false
                 });
 
                 document.getElementById('regionLegend').style.display = 'none';
@@ -743,7 +745,15 @@
                     zoom: w < 400 ? 4.0 : 4.8,
                     layers: mapboxLayers
                 },
-                margin: { t: 0, b: 0, l: 0, r: 90 }, height: h, autosize: true
+                margin: { t: 0, b: 0, l: 0, r: 90 }, height: h, autosize: true,
+                legend: {
+                    x: 0, y: 0, xanchor: 'left', yanchor: 'bottom',
+                    bgcolor: 'rgba(255,255,255,0.85)',
+                    bordercolor: '#ccc', borderwidth: 1,
+                    font: { size: 12 },
+                    orientation: 'v',
+                    tracegroupgap: 4
+                }
             };
 
             // Data center scatter overlay
@@ -802,7 +812,12 @@
                 }
             }
 
-            Plotly.newPlot('countyMap', traces, layout, { responsive: true });
+            Plotly.newPlot('countyMap', traces, layout, {
+                responsive: true,
+                modeBarPosition: 'top-left',
+                displaylogo: false,
+                modeBarButtonsToRemove: ['select2d', 'lasso2d']
+            });
 
             document.getElementById('countyMapTitle').textContent = mapViewMode === 'regions'
                 ? (region ? `Region ${region} — Planning Regions` : 'All Texas — Planning Regions')
