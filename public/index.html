@@ -317,10 +317,30 @@
             </div>
         </div>
 
+        <!-- The Overlap: Industrial facilities in water-stressed areas -->
+        <div class="insights-grid" style="grid-template-columns: repeat(4, 1fr);">
+            <div class="insight-card">
+                <div class="insight-value" id="overlapDcDeficit" style="color:#00838f;">--</div>
+                <div class="insight-label">Data Centers in Deficit Counties</div>
+            </div>
+            <div class="insight-card">
+                <div class="insight-value" id="overlapFabDeficit" style="color:#e65100;">--</div>
+                <div class="insight-label">Semiconductor Fabs in Deficit Counties</div>
+            </div>
+            <div class="insight-card">
+                <div class="insight-value" id="overlapDeficitTotal" style="color:#b71c1c;">--</div>
+                <div class="insight-label">Water Deficit in Industrial Counties (ac-ft)</div>
+            </div>
+            <div class="insight-card">
+                <div class="insight-value" id="overlapPopAtRisk" style="color:#4a148c;">--</div>
+                <div class="insight-label">People in Industrial + Deficit Counties</div>
+            </div>
+        </div>
+
         <div class="charts-grid">
             <div class="chart-box">
-                <div class="chart-title" id="balanceChartTitle">Water Balance by Region</div>
-                <div class="chart" id="demandsChart"></div>
+                <div class="chart-title">Industrial Facilities in Water-Stressed Counties</div>
+                <div class="chart" id="overlapBarChart"></div>
             </div>
             <div class="chart-box">
                 <div class="chart-title" id="projectionChartTitle">Statewide Projection (2020-2070)</div>
@@ -328,8 +348,13 @@
             </div>
         </div>
 
+        <div class="chart-box" style="margin-bottom: 12px;">
+            <div class="chart-title">Water Deficit vs. Industrial Concentration</div>
+            <div class="chart" id="overlapScatterChart" style="height:450px;"></div>
+        </div>
+
         <div class="chart-box" style="margin-bottom: 20px;">
-            <div class="chart-title" id="riskTableTitle">Top Counties at Risk</div>
+            <div class="chart-title" id="riskTableTitle">Top Counties at Risk — Water & Industrial Impact</div>
             <div id="dataTable" class="data-table">
                 <div class="loading">Loading data...</div>
             </div>
@@ -549,7 +574,7 @@
             updateInsights(year, region);
             updateCountyMap();
             updateSectorBreakdown(year, region);
-            updateRegionalBalance(year, region);
+            updateOverlapAnalysis(year, region);
             updateStatewideProjection(region);
             updateRiskTable(year, region);
         }
@@ -883,24 +908,147 @@
             displaylogo: false
         };
 
-        function updateRegionalBalance(year, region) {
-            const regions = region ? [region] : [...new Set(allData.demands.map(d => d.WugRegion))].filter(Boolean).sort();
-            const demandByR = {}, supplyByR = {}, needsByR = {};
-            regions.forEach(r => { demandByR[r] = 0; supplyByR[r] = 0; needsByR[r] = 0; });
+        // --- Helper: count facilities per county ---
+        function countFacilitiesByCounty() {
+            const dcByCounty = {}, fabByCounty = {};
+            allData.datacenters.forEach(dc => {
+                const c = (dc.COUNTY_NAME || '').toUpperCase().replace(/ COUNTY$/i, '').trim();
+                if (c) dcByCounty[c] = (dcByCounty[c] || 0) + 1;
+            });
+            allData.semifabs.forEach(fab => {
+                const c = (fab.COUNTY_NAME || '').toUpperCase().replace(/ COUNTY$/i, '').trim();
+                if (c) fabByCounty[c] = (fabByCounty[c] || 0) + 1;
+            });
+            return { dcByCounty, fabByCounty };
+        }
 
-            allData.demands.forEach(row => { if (regions.includes(row.WugRegion)) demandByR[row.WugRegion] += parseFloat(row[`D${year}`]) || 0; });
-            allData.existing.forEach(row => { if (regions.includes(row.WugRegion)) supplyByR[row.WugRegion] += parseFloat(row[`WS${year}`]) || 0; });
-            allData.needs.forEach(row => { if (regions.includes(row.WugRegion)) needsByR[row.WugRegion] += parseFloat(row[`N${year}`]) || 0; });
+        function updateOverlapAnalysis(year, region) {
+            const { dcByCounty, fabByCounty } = countFacilitiesByCounty();
 
-            const traces = [
-                { x: regions, y: regions.map(r => demandByR[r]), name: 'Demand', type: 'bar', marker: { color: '#2171b5' }, hovertemplate: '<b>Region %{x}</b><br>Demand: %{y:,.0f} ac-ft<extra></extra>' },
-                { x: regions, y: regions.map(r => supplyByR[r]), name: 'Supply', type: 'bar', marker: { color: '#238b45' }, hovertemplate: '<b>Region %{x}</b><br>Supply: %{y:,.0f} ac-ft<extra></extra>' },
-                { x: regions, y: regions.map(r => needsByR[r]), name: 'Unmet Need', type: 'bar', marker: { color: '#e31a1c' }, hovertemplate: '<b>Region %{x}</b><br>Unmet Need: %{y:,.0f} ac-ft<extra></extra>' }
+            // Build county-level water data
+            const waterByCounty = {};
+            const addWater = (arr, prefix, field) => {
+                arr.forEach(row => {
+                    if (region && row.WugRegion !== region) return;
+                    const c = (row.WugCounty || '').toUpperCase();
+                    if (!c) return;
+                    if (!waterByCounty[c]) waterByCounty[c] = { needs: 0, demand: 0, pop: 0, supply: 0 };
+                    waterByCounty[c][field] += parseFloat(row[`${prefix}${year}`]) || 0;
+                });
+            };
+            addWater(allData.needs, 'N', 'needs');
+            addWater(allData.demands, 'D', 'demand');
+            addWater(allData.population, 'P', 'pop');
+            addWater(allData.existing, 'WS', 'supply');
+
+            // Counties with deficits
+            const deficitCounties = new Set();
+            for (const [c, w] of Object.entries(waterByCounty)) {
+                if (w.needs > 0) deficitCounties.add(c);
+            }
+
+            // Overlap stats
+            let dcInDeficit = 0, fabInDeficit = 0, deficitInIndustrial = 0, popInOverlap = 0;
+            const industrialCounties = new Set([...Object.keys(dcByCounty), ...Object.keys(fabByCounty)]);
+
+            for (const c of Object.keys(dcByCounty)) {
+                if (deficitCounties.has(c)) dcInDeficit += dcByCounty[c];
+            }
+            for (const c of Object.keys(fabByCounty)) {
+                if (deficitCounties.has(c)) fabInDeficit += fabByCounty[c];
+            }
+            for (const c of industrialCounties) {
+                if (deficitCounties.has(c) && waterByCounty[c]) {
+                    deficitInIndustrial += waterByCounty[c].needs;
+                    popInOverlap += waterByCounty[c].pop;
+                }
+            }
+
+            const totalDc = Object.values(dcByCounty).reduce((s, v) => s + v, 0);
+            const totalFab = Object.values(fabByCounty).reduce((s, v) => s + v, 0);
+
+            // Update insight cards
+            document.getElementById('overlapDcDeficit').textContent = `${dcInDeficit} of ${totalDc}`;
+            document.getElementById('overlapFabDeficit').textContent = `${fabInDeficit} of ${totalFab}`;
+            document.getElementById('overlapDeficitTotal').textContent = deficitInIndustrial >= 1e6
+                ? (deficitInIndustrial / 1e6).toFixed(1) + 'M'
+                : Math.round(deficitInIndustrial).toLocaleString();
+            document.getElementById('overlapPopAtRisk').textContent = popInOverlap >= 1e6
+                ? (popInOverlap / 1e6).toFixed(1) + 'M'
+                : Math.round(popInOverlap).toLocaleString();
+
+            // --- Chart A: Industrial Facilities in Water-Stressed Counties (horizontal stacked bar) ---
+            const countyData = [];
+            for (const c of new Set([...Object.keys(dcByCounty), ...Object.keys(fabByCounty)])) {
+                const dc = dcByCounty[c] || 0;
+                const fab = fabByCounty[c] || 0;
+                const w = waterByCounty[c] || { needs: 0, demand: 0 };
+                countyData.push({ county: c, dc, fab, total: dc + fab, needs: w.needs, demand: w.demand });
+            }
+            countyData.sort((a, b) => b.total - a.total);
+            const top15 = countyData.slice(0, 15).reverse(); // reverse for horizontal bar
+
+            const barTraces = [
+                {
+                    y: top15.map(c => c.county), x: top15.map(c => c.dc),
+                    name: 'Data Centers', type: 'bar', orientation: 'h',
+                    marker: { color: '#00e5ff' },
+                    hovertemplate: '<b>%{y}</b><br>Data Centers: %{x}<extra></extra>'
+                },
+                {
+                    y: top15.map(c => c.county), x: top15.map(c => c.fab),
+                    name: 'Semiconductor Fabs', type: 'bar', orientation: 'h',
+                    marker: { color: '#ffea00' },
+                    hovertemplate: '<b>%{y}</b><br>Semiconductor Fabs: %{x}<extra></extra>'
+                }
             ];
+            const barLayout = {
+                barmode: 'stack',
+                xaxis: { title: 'Number of Facilities' },
+                yaxis: { title: '', automargin: true },
+                legend: { orientation: 'h', y: -0.15 },
+                margin: { t: 10, b: 60, l: 120, r: 20 },
+                hovermode: 'y unified'
+            };
+            Plotly.newPlot('overlapBarChart', barTraces, barLayout, chartConfig);
 
-            const layout = { barmode: 'group', xaxis: { title: 'Planning Region' }, yaxis: { title: 'Acre-Feet' }, legend: { orientation: 'h', y: -0.2 }, hovermode: 'x unified', margin: { t: 10, b: 80 } };
-            Plotly.newPlot('demandsChart', traces, layout, chartConfig);
-            document.getElementById('balanceChartTitle').textContent = region ? `Water Balance — Region ${region}` : 'Water Balance by Region';
+            // --- Chart B: Scatter — Water Deficit vs Industrial Concentration ---
+            const scatterData = countyData.filter(c => c.needs > 0 || c.total > 0);
+            const maxPop = Math.max(...scatterData.map(c => (waterByCounty[c.county] || {}).pop || 0), 1);
+
+            const scatterTrace = {
+                x: scatterData.map(c => c.total),
+                y: scatterData.map(c => c.needs),
+                text: scatterData.map(c => {
+                    const w = waterByCounty[c.county] || { pop: 0, demand: 0, supply: 0 };
+                    return `<b>${c.county}</b><br>` +
+                        `Facilities: ${c.total} (${c.dc} DC, ${c.fab} Fab)<br>` +
+                        `Water Deficit: ${Math.round(c.needs).toLocaleString()} ac-ft<br>` +
+                        `Population: ${Math.round(w.pop).toLocaleString()}`;
+                }),
+                hoverinfo: 'text',
+                mode: 'markers',
+                marker: {
+                    size: scatterData.map(c => {
+                        const pop = (waterByCounty[c.county] || {}).pop || 0;
+                        return Math.max(8, Math.sqrt(pop / maxPop) * 60);
+                    }),
+                    color: scatterData.map(c => c.needs),
+                    colorscale: [[0,'#ffffcc'],[0.25,'#fed976'],[0.5,'#fd8d3c'],[0.75,'#e31a1c'],[1,'#800026']],
+                    showscale: true,
+                    colorbar: { title: 'Deficit (ac-ft)', thickness: 15 },
+                    line: { width: 1, color: '#333' },
+                    opacity: 0.85
+                },
+                type: 'scatter'
+            };
+            const scatterLayout = {
+                xaxis: { title: 'Number of Industrial Facilities', zeroline: true },
+                yaxis: { title: 'Water Deficit (acre-ft)', zeroline: true },
+                margin: { t: 10, b: 60, l: 80, r: 30 },
+                hovermode: 'closest'
+            };
+            Plotly.newPlot('overlapScatterChart', [scatterTrace], scatterLayout, chartConfig);
         }
 
         function updateStatewideProjection(region) {
@@ -922,6 +1070,7 @@
         }
 
         function updateRiskTable(year, region) {
+            const { dcByCounty, fabByCounty } = countFacilitiesByCounty();
             const counties = {};
             const addTo = (arr, prefix, field) => {
                 arr.forEach(row => {
@@ -937,6 +1086,14 @@
             addTo(allData.existing, 'WS', 'supply');
             addTo(allData.needs, 'N', 'needs');
 
+            // Add facility counts
+            Object.values(counties).forEach(c => {
+                const key = c.county.toUpperCase();
+                c.dc = dcByCounty[key] || 0;
+                c.fab = fabByCounty[key] || 0;
+                c.facilities = c.dc + c.fab;
+            });
+
             const sorted = Object.values(counties).filter(c => c.needs > 0).sort((a, b) => b.needs - a.needs).slice(0, 25);
 
             if (sorted.length === 0) {
@@ -945,15 +1102,19 @@
             }
 
             const fmt = n => Math.round(n).toLocaleString();
-            let html = '<table><tr><th>#</th><th>County</th><th>Region</th><th>Population</th><th>Demand</th><th>Supply</th><th>Unmet Need</th><th>Deficit %</th></tr>';
+            let html = '<table><tr><th>#</th><th>County</th><th>Region</th><th>Population</th><th>Unmet Need</th><th>Deficit %</th><th style="color:#00838f;">Data Ctrs</th><th style="color:#e65100;">Semi Fabs</th></tr>';
             sorted.forEach((c, i) => {
                 const pct = c.demand > 0 ? ((c.needs / c.demand) * 100).toFixed(1) : '0.0';
                 const sev = pct >= 50 ? 'color:#b71c1c;font-weight:bold' : pct >= 25 ? 'color:#e65100;font-weight:bold' : 'color:#333';
-                html += `<tr><td>${i+1}</td><td><strong>${c.county}</strong></td><td>${c.region}</td><td>${fmt(c.pop)}</td><td>${fmt(c.demand)}</td><td>${fmt(c.supply)}</td><td style="${sev}">${fmt(c.needs)}</td><td style="${sev}">${pct}%</td></tr>`;
+                const dcStyle = c.dc > 0 ? 'font-weight:bold;color:#00838f' : 'color:#ccc';
+                const fabStyle = c.fab > 0 ? 'font-weight:bold;color:#e65100' : 'color:#ccc';
+                html += `<tr><td>${i+1}</td><td><strong>${c.county}</strong></td><td>${c.region}</td><td>${fmt(c.pop)}</td><td style="${sev}">${fmt(c.needs)}</td><td style="${sev}">${pct}%</td><td style="${dcStyle}">${c.dc || '—'}</td><td style="${fabStyle}">${c.fab || '—'}</td></tr>`;
             });
             html += '</table>';
             document.getElementById('dataTable').innerHTML = html;
-            document.getElementById('riskTableTitle').textContent = region ? `Top Counties at Risk — Region ${region}` : 'Top Counties at Risk';
+            document.getElementById('riskTableTitle').textContent = region
+                ? `Top Counties at Risk — Region ${region} — Water & Industrial Impact`
+                : 'Top Counties at Risk — Water & Industrial Impact';
         }
 
         function downloadData() {
