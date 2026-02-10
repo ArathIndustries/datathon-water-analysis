@@ -843,7 +843,8 @@
             for (let i = 0; i < count; i++) {
                 const logVal = (maxLog * i) / (count - 1);
                 vals.push(logVal);
-                text.push(Math.round(Math.pow(10, logVal) - 1).toLocaleString());
+                const raw = Math.pow(10, logVal) - 1;
+                text.push(raw < 1 ? '0' : Number(raw.toPrecision(2)).toLocaleString());
             }
             return { vals, text };
         }
