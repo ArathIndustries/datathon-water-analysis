@@ -289,6 +289,10 @@
                         <input type="checkbox" id="showDataCenters" onchange="updateCountyMap()">
                         <label for="showDataCenters">Show Data Centers</label>
                     </div>
+                    <div class="map-overlay-toggle">
+                        <input type="checkbox" id="showSemiFabs" onchange="updateCountyMap()">
+                        <label for="showSemiFabs">Show Semiconductor Fabs</label>
+                    </div>
                 </div>
             </div>
             <div class="map-wrapper"><div id="countyMap"></div></div>
@@ -342,7 +346,7 @@
     </div>
 
     <script>
-        let allData = { demands: [], existing: [], needs: [], population: [], strategies: [], datacenters: [] };
+        let allData = { demands: [], existing: [], needs: [], population: [], strategies: [], datacenters: [], semifabs: [] };
         let txGeojson = null;
         let txRegionsGeojson = null; // dissolved region boundaries for overlay
         let countyToRegion = {};   // "TRAVIS" -> "G"
@@ -420,6 +424,15 @@
                     allData.datacenters = Papa.parse(dcText, { header: true, skipEmptyLines: true }).data;
                 }
             } catch (e) { console.warn('Could not load datacenters_locations.csv:', e); }
+
+            // Load semiconductor fab locations
+            try {
+                const fabResp = await fetch('data/semi_facilites_with_location.csv');
+                if (fabResp.ok) {
+                    const fabText = await fabResp.text();
+                    allData.semifabs = Papa.parse(fabText, { header: true, skipEmptyLines: true }).data;
+                }
+            } catch (e) { console.warn('Could not load semi_facilites_with_location.csv:', e); }
         }
 
         async function loadTexasGeojson() {
@@ -762,6 +775,34 @@
                         mode: 'markers',
                         marker: { size: 12, color: '#667eea', opacity: 0.9 },
                         name: 'Data Centers'
+                    });
+                }
+            }
+
+            // Semiconductor fab scatter overlay
+            if (document.getElementById('showSemiFabs').checked && allData.semifabs.length > 0) {
+                const fabLons = [], fabLats = [], fabText = [];
+                allData.semifabs.forEach(fab => {
+                    const lat = parseFloat(fab.LATITUDE83);
+                    const lon = parseFloat(fab.LONGITUDE83);
+                    if (!isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0) {
+                        fabLats.push(lat);
+                        fabLons.push(lon);
+                        fabText.push(
+                            `<b>${fab.PRIMARY_NAME || 'Unknown'}</b><br>` +
+                            `${fab.CITY_NAME || ''}, ${fab.COUNTY_NAME || ''}<br>` +
+                            `${fab.LOCATION_ADDRESS || ''}`
+                        );
+                    }
+                });
+                if (fabLons.length > 0) {
+                    traces.push({
+                        type: 'scattermapbox',
+                        lon: fabLons, lat: fabLats,
+                        text: fabText, hoverinfo: 'text',
+                        mode: 'markers',
+                        marker: { size: 10, color: '#e65100', opacity: 0.9 },
+                        name: 'Semiconductor Fabs'
                     });
                 }
             }
