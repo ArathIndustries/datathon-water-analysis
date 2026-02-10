@@ -321,19 +321,19 @@
         <div class="insights-grid" style="grid-template-columns: repeat(4, 1fr);">
             <div class="insight-card">
                 <div class="insight-value" id="overlapDcDeficit" style="color:#00838f;">--</div>
-                <div class="insight-label">Data Centers in Deficit Counties</div>
+                <div class="insight-label">Data Centers in Water-Stressed Counties (10%+ deficit)</div>
             </div>
             <div class="insight-card">
                 <div class="insight-value" id="overlapFabDeficit" style="color:#e65100;">--</div>
-                <div class="insight-label">Semiconductor Fabs in Deficit Counties</div>
+                <div class="insight-label">Semi Fabs in Water-Stressed Counties (10%+ deficit)</div>
             </div>
             <div class="insight-card">
                 <div class="insight-value" id="overlapDeficitTotal" style="color:#b71c1c;">--</div>
-                <div class="insight-label">Water Deficit in Industrial Counties (ac-ft)</div>
+                <div class="insight-label">Combined Deficit in Stressed Industrial Counties (ac-ft)</div>
             </div>
             <div class="insight-card">
                 <div class="insight-value" id="overlapPopAtRisk" style="color:#4a148c;">--</div>
-                <div class="insight-label">People in Industrial + Deficit Counties</div>
+                <div class="insight-label">People in Stressed Industrial Counties</div>
             </div>
         </div>
 
@@ -908,6 +908,23 @@
             displaylogo: false
         };
 
+        // --- Severity tiers ---
+        const deficitTiers = [
+            { name: 'Critical', min: 50, color: '#b71c1c', bg: '#ffebee' },
+            { name: 'Severe',   min: 25, color: '#e65100', bg: '#fff3e0' },
+            { name: 'Moderate', min: 10, color: '#f57f17', bg: '#fffde7' },
+            { name: 'Low',      min: 0.01, color: '#558b2f', bg: '#f1f8e9' },
+            { name: 'None',     min: 0,  color: '#2e7d32', bg: '#e8f5e9' }
+        ];
+
+        function getDeficitTier(needs, demand) {
+            const pct = demand > 0 ? (needs / demand) * 100 : 0;
+            for (const tier of deficitTiers) {
+                if (pct >= tier.min) return { ...tier, pct };
+            }
+            return { ...deficitTiers[4], pct: 0 };
+        }
+
         // --- Helper: count facilities per county ---
         function countFacilitiesByCounty() {
             const dcByCounty = {}, fabByCounty = {};
@@ -941,24 +958,25 @@
             addWater(allData.population, 'P', 'pop');
             addWater(allData.existing, 'WS', 'supply');
 
-            // Counties with deficits
-            const deficitCounties = new Set();
+            // Counties with moderate+ deficit (≥10%)
+            const stressedCounties = new Set();
             for (const [c, w] of Object.entries(waterByCounty)) {
-                if (w.needs > 0) deficitCounties.add(c);
+                const tier = getDeficitTier(w.needs, w.demand);
+                if (tier.pct >= 10) stressedCounties.add(c);
             }
 
-            // Overlap stats
-            let dcInDeficit = 0, fabInDeficit = 0, deficitInIndustrial = 0, popInOverlap = 0;
+            // Overlap stats — only count moderate+ stressed counties
+            let dcInStressed = 0, fabInStressed = 0, deficitInIndustrial = 0, popInOverlap = 0;
             const industrialCounties = new Set([...Object.keys(dcByCounty), ...Object.keys(fabByCounty)]);
 
             for (const c of Object.keys(dcByCounty)) {
-                if (deficitCounties.has(c)) dcInDeficit += dcByCounty[c];
+                if (stressedCounties.has(c)) dcInStressed += dcByCounty[c];
             }
             for (const c of Object.keys(fabByCounty)) {
-                if (deficitCounties.has(c)) fabInDeficit += fabByCounty[c];
+                if (stressedCounties.has(c)) fabInStressed += fabByCounty[c];
             }
             for (const c of industrialCounties) {
-                if (deficitCounties.has(c) && waterByCounty[c]) {
+                if (stressedCounties.has(c) && waterByCounty[c]) {
                     deficitInIndustrial += waterByCounty[c].needs;
                     popInOverlap += waterByCounty[c].pop;
                 }
@@ -968,8 +986,8 @@
             const totalFab = Object.values(fabByCounty).reduce((s, v) => s + v, 0);
 
             // Update insight cards
-            document.getElementById('overlapDcDeficit').textContent = `${dcInDeficit} of ${totalDc}`;
-            document.getElementById('overlapFabDeficit').textContent = `${fabInDeficit} of ${totalFab}`;
+            document.getElementById('overlapDcDeficit').textContent = `${dcInStressed} of ${totalDc}`;
+            document.getElementById('overlapFabDeficit').textContent = `${fabInStressed} of ${totalFab}`;
             document.getElementById('overlapDeficitTotal').textContent = deficitInIndustrial >= 1e6
                 ? (deficitInIndustrial / 1e6).toFixed(1) + 'M'
                 : Math.round(deficitInIndustrial).toLocaleString();
@@ -983,10 +1001,11 @@
                 const dc = dcByCounty[c] || 0;
                 const fab = fabByCounty[c] || 0;
                 const w = waterByCounty[c] || { needs: 0, demand: 0 };
-                countyData.push({ county: c, dc, fab, total: dc + fab, needs: w.needs, demand: w.demand });
+                const tier = getDeficitTier(w.needs, w.demand);
+                countyData.push({ county: c, dc, fab, total: dc + fab, needs: w.needs, demand: w.demand, tier });
             }
             countyData.sort((a, b) => b.total - a.total);
-            const top15 = countyData.slice(0, 15).reverse(); // reverse for horizontal bar
+            const top15 = countyData.slice(0, 15).reverse();
 
             const barTraces = [
                 {
@@ -1002,53 +1021,74 @@
                     hovertemplate: '<b>%{y}</b><br>Semiconductor Fabs: %{x}<extra></extra>'
                 }
             ];
+
+            // Add tier annotations on the right side of each bar
+            const barAnnotations = top15.map(c => ({
+                x: c.total + 0.3,
+                y: c.county,
+                text: `<b style="color:${c.tier.color}">${c.tier.name}</b>`,
+                showarrow: false,
+                xanchor: 'left',
+                font: { size: 11, color: c.tier.color }
+            }));
+
             const barLayout = {
                 barmode: 'stack',
-                xaxis: { title: 'Number of Facilities' },
+                xaxis: { title: 'Number of Facilities', range: [0, Math.max(...top15.map(c => c.total)) + 3] },
                 yaxis: { title: '', automargin: true },
                 legend: { orientation: 'h', y: -0.15 },
-                margin: { t: 10, b: 60, l: 120, r: 20 },
-                hovermode: 'y unified'
+                margin: { t: 10, b: 60, l: 120, r: 80 },
+                hovermode: 'y unified',
+                annotations: barAnnotations
             };
             Plotly.newPlot('overlapBarChart', barTraces, barLayout, chartConfig);
 
             // --- Chart B: Scatter — Water Deficit vs Industrial Concentration ---
-            const scatterData = countyData.filter(c => c.needs > 0 || c.total > 0);
-            const maxPop = Math.max(...scatterData.map(c => (waterByCounty[c.county] || {}).pop || 0), 1);
+            // Group by tier for separate traces (gives us a proper legend)
+            const scatterByTier = {};
+            countyData.forEach(c => {
+                if (c.needs <= 0 && c.total <= 0) return;
+                const tierName = c.tier.name;
+                if (!scatterByTier[tierName]) scatterByTier[tierName] = { data: [], tier: c.tier };
+                scatterByTier[tierName].data.push(c);
+            });
 
-            const scatterTrace = {
-                x: scatterData.map(c => c.total),
-                y: scatterData.map(c => c.needs),
-                text: scatterData.map(c => {
+            const maxPop = Math.max(...countyData.map(c => (waterByCounty[c.county] || {}).pop || 0), 1);
+
+            const scatterTraces = Object.entries(scatterByTier).map(([tierName, { data, tier }]) => ({
+                x: data.map(c => c.total),
+                y: data.map(c => c.needs),
+                text: data.map(c => {
                     const w = waterByCounty[c.county] || { pop: 0, demand: 0, supply: 0 };
                     return `<b>${c.county}</b><br>` +
+                        `Severity: ${tier.name} (${c.tier.pct.toFixed(1)}%)<br>` +
                         `Facilities: ${c.total} (${c.dc} DC, ${c.fab} Fab)<br>` +
                         `Water Deficit: ${Math.round(c.needs).toLocaleString()} ac-ft<br>` +
                         `Population: ${Math.round(w.pop).toLocaleString()}`;
                 }),
                 hoverinfo: 'text',
                 mode: 'markers',
+                name: tierName,
                 marker: {
-                    size: scatterData.map(c => {
+                    size: data.map(c => {
                         const pop = (waterByCounty[c.county] || {}).pop || 0;
                         return Math.max(8, Math.sqrt(pop / maxPop) * 60);
                     }),
-                    color: scatterData.map(c => c.needs),
-                    colorscale: [[0,'#ffffcc'],[0.25,'#fed976'],[0.5,'#fd8d3c'],[0.75,'#e31a1c'],[1,'#800026']],
-                    showscale: true,
-                    colorbar: { title: 'Deficit (ac-ft)', thickness: 15 },
+                    color: tier.color,
                     line: { width: 1, color: '#333' },
                     opacity: 0.85
                 },
                 type: 'scatter'
-            };
+            }));
+
             const scatterLayout = {
                 xaxis: { title: 'Number of Industrial Facilities', zeroline: true },
                 yaxis: { title: 'Water Deficit (acre-ft)', zeroline: true },
                 margin: { t: 10, b: 60, l: 80, r: 30 },
-                hovermode: 'closest'
+                hovermode: 'closest',
+                legend: { orientation: 'h', y: -0.12 }
             };
-            Plotly.newPlot('overlapScatterChart', [scatterTrace], scatterLayout, chartConfig);
+            Plotly.newPlot('overlapScatterChart', scatterTraces, scatterLayout, chartConfig);
         }
 
         function updateStatewideProjection(region) {
@@ -1102,13 +1142,12 @@
             }
 
             const fmt = n => Math.round(n).toLocaleString();
-            let html = '<table><tr><th>#</th><th>County</th><th>Region</th><th>Population</th><th>Unmet Need</th><th>Deficit %</th><th style="color:#00838f;">Data Ctrs</th><th style="color:#e65100;">Semi Fabs</th></tr>';
+            let html = '<table><tr><th>#</th><th>County</th><th>Region</th><th>Population</th><th>Unmet Need</th><th>Severity</th><th style="color:#00838f;">Data Ctrs</th><th style="color:#e65100;">Semi Fabs</th></tr>';
             sorted.forEach((c, i) => {
-                const pct = c.demand > 0 ? ((c.needs / c.demand) * 100).toFixed(1) : '0.0';
-                const sev = pct >= 50 ? 'color:#b71c1c;font-weight:bold' : pct >= 25 ? 'color:#e65100;font-weight:bold' : 'color:#333';
+                const tier = getDeficitTier(c.needs, c.demand);
                 const dcStyle = c.dc > 0 ? 'font-weight:bold;color:#00838f' : 'color:#ccc';
                 const fabStyle = c.fab > 0 ? 'font-weight:bold;color:#e65100' : 'color:#ccc';
-                html += `<tr><td>${i+1}</td><td><strong>${c.county}</strong></td><td>${c.region}</td><td>${fmt(c.pop)}</td><td style="${sev}">${fmt(c.needs)}</td><td style="${sev}">${pct}%</td><td style="${dcStyle}">${c.dc || '—'}</td><td style="${fabStyle}">${c.fab || '—'}</td></tr>`;
+                html += `<tr><td>${i+1}</td><td><strong>${c.county}</strong></td><td>${c.region}</td><td>${fmt(c.pop)}</td><td style="color:${tier.color};font-weight:bold">${fmt(c.needs)}</td><td><span style="background:${tier.bg};color:${tier.color};padding:2px 8px;border-radius:3px;font-weight:600;font-size:0.85em;">${tier.name} (${tier.pct.toFixed(0)}%)</span></td><td style="${dcStyle}">${c.dc || '—'}</td><td style="${fabStyle}">${c.fab || '—'}</td></tr>`;
             });
             html += '</table>';
             document.getElementById('dataTable').innerHTML = html;
