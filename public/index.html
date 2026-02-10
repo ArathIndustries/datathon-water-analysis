@@ -125,18 +125,6 @@
             width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0;
         }
 
-        .sector-breakdown { margin-top: 10px; }
-        .sector-breakdown-title { font-size: 0.8em; font-weight: 600; color: #333; margin-bottom: 4px; }
-        .sector-bar { display: flex; height: 22px; border-radius: 4px; overflow: hidden; border: 1px solid #ddd; }
-        .sector-segment {
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-size: 0.7em; font-weight: 600; white-space: nowrap;
-            overflow: hidden; padding: 0 4px; min-width: 0; transition: opacity 0.2s;
-        }
-        .sector-segment:hover { opacity: 0.85; }
-        .sector-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 0.75em; color: #555; }
-        .sector-legend-item { display: flex; align-items: center; gap: 3px; }
-        .sector-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 
         /* Charts */
         .charts-grid {
@@ -252,9 +240,9 @@
 
             <select id="yearSelect" onchange="updateDashboard()">
                 <option value="2020">2020</option>
-                <option value="2030">2030</option>
+                <option value="2030" selected>2030</option>
                 <option value="2040">2040</option>
-                <option value="2050" selected>2050</option>
+                <option value="2050">2050</option>
                 <option value="2060">2060</option>
                 <option value="2070">2070</option>
             </select>
@@ -291,11 +279,6 @@
             <div id="regionLegend" style="display:none;">
                 <div style="font-size:0.8em;font-weight:600;color:#333;margin-bottom:6px;">TWDB Planning Regions</div>
                 <div class="region-chips" id="regionChips"></div>
-            </div>
-            <div class="sector-breakdown">
-                <div class="sector-breakdown-title">Demand by Sector</div>
-                <div class="sector-bar" id="sectorBar"></div>
-                <div class="sector-legend" id="sectorLegend"></div>
             </div>
         </div>
 
@@ -374,16 +357,6 @@
             supply:     { label: 'Existing Supply (ac-ft)', scale: [[0,'#edf8e9'],[0.25,'#bae4b3'],[0.5,'#74c476'],[0.75,'#238b45'],[1,'#00441b']] }
         };
 
-        const sectorLabels = {
-            'MUNICIPAL': 'Municipal (Cities)', 'IRRIGATION': 'Irrigation (Agriculture)',
-            'LIVESTOCK': 'Livestock (Ranching)', 'MANUFACTURING': 'Manufacturing',
-            'MINING': 'Mining (Oil/Gas)', 'STEAM ELECTRIC POWER': 'Power Generation'
-        };
-
-        const sectorColors = {
-            'MUNICIPAL': '#2171b5', 'IRRIGATION': '#238b45', 'LIVESTOCK': '#d4a017',
-            'MANUFACTURING': '#e65100', 'MINING': '#6a1b9a', 'STEAM ELECTRIC POWER': '#c62828'
-        };
 
         // 16 maximally-distinguishable colors for categorical region map
         const regionPalette = [
@@ -561,7 +534,6 @@
 
             updateInsights(year, region);
             updateCountyMap();
-            updateSectorBreakdown(year, region);
             updateOverlapAnalysis(year, region);
             updateRiskTable(year, region);
         }
@@ -849,47 +821,6 @@
             return { vals, text };
         }
 
-        // --- Sector breakdown ---
-        function updateSectorBreakdown(year, region) {
-            const sectorTotals = {};
-            let grandTotal = 0;
-            allData.demands.forEach(row => {
-                if (region && row.WugRegion !== region) return;
-                const sector = row.WugType || 'OTHER';
-                const val = parseFloat(row[`D${year}`]) || 0;
-                sectorTotals[sector] = (sectorTotals[sector] || 0) + val;
-                grandTotal += val;
-            });
-
-            const barEl = document.getElementById('sectorBar');
-            const legendEl = document.getElementById('sectorLegend');
-            if (grandTotal === 0) { barEl.innerHTML = ''; legendEl.innerHTML = ''; return; }
-
-            const sorted = Object.entries(sectorTotals).sort((a, b) => b[1] - a[1]);
-
-            barEl.innerHTML = '';
-            sorted.forEach(([sector, val]) => {
-                const pct = val / grandTotal * 100;
-                if (pct < 0.5) return;
-                const seg = document.createElement('div');
-                seg.className = 'sector-segment';
-                seg.style.width = pct + '%';
-                seg.style.background = sectorColors[sector] || '#999';
-                seg.textContent = pct >= 8 ? Math.round(pct) + '%' : '';
-                seg.title = `${sectorLabels[sector] || sector}: ${Math.round(val).toLocaleString()} ac-ft (${pct.toFixed(1)}%)`;
-                barEl.appendChild(seg);
-            });
-
-            legendEl.innerHTML = '';
-            sorted.forEach(([sector, val]) => {
-                const pct = val / grandTotal * 100;
-                if (pct < 0.5) return;
-                const item = document.createElement('span');
-                item.className = 'sector-legend-item';
-                item.innerHTML = `<span class="sector-dot" style="background:${sectorColors[sector] || '#999'}"></span>${sectorLabels[sector] || sector} ${Math.round(pct)}%`;
-                legendEl.appendChild(item);
-            });
-        }
 
         // --- Charts ---
         const chartConfig = {
