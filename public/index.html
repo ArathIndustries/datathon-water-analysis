@@ -103,14 +103,6 @@
         .map-title { font-size: 1.1em; font-weight: 600; color: #333; }
         .map-wrapper { position: relative; overflow: hidden; }
 
-        .map-legend {
-            display: flex; align-items: center; gap: 8px;
-            margin-top: 8px; font-size: 0.8em; color: #555;
-        }
-        .map-legend .legend-label { white-space: nowrap; font-weight: 600; color: #333; }
-        .map-legend .legend-bar { flex: 1; height: 12px; border-radius: 3px; border: 1px solid #ccc; min-width: 80px; }
-        .map-legend .legend-ticks { flex: 1; display: flex; justify-content: space-between; font-size: 0.85em; color: #777; min-width: 80px; }
-
         .map-toggle {
             display: flex; gap: 2px; background: #f0f0f0; border-radius: 6px; padding: 2px;
         }
@@ -296,16 +288,6 @@
                 </div>
             </div>
             <div class="map-wrapper"><div id="countyMap"></div></div>
-            <div id="gradientLegend">
-                <div class="map-legend">
-                    <span class="legend-label" id="legendLabel">--</span>
-                    <div class="legend-bar" id="legendBar"></div>
-                </div>
-                <div class="map-legend" style="margin-top:2px;">
-                    <span class="legend-label" style="visibility:hidden;" id="legendSpacer">--</span>
-                    <div class="legend-ticks" id="legendTicks"></div>
-                </div>
-            </div>
             <div id="regionLegend" style="display:none;">
                 <div style="font-size:0.8em;font-weight:600;color:#333;margin-bottom:6px;">TWDB Planning Regions</div>
                 <div class="region-chips" id="regionChips"></div>
@@ -681,10 +663,18 @@
                     );
                 });
 
+                const rTicks = buildColorbarTicks(maxLogR, 5);
                 traces.push({
                     type: 'choroplethmapbox', geojson: txGeojson,
                     locations: locs, z: zVals, text: hover, hoverinfo: 'text',
-                    colorscale: cfg.scale, zmin: 0, zmax: maxLogR, showscale: false,
+                    colorscale: cfg.scale, zmin: 0, zmax: maxLogR,
+                    showscale: true,
+                    colorbar: {
+                        title: { text: cfg.label, font: { size: 11 } },
+                        orientation: 'h', x: 0.5, y: -0.02,
+                        len: 0.7, thickness: 12,
+                        tickvals: rTicks.vals, ticktext: rTicks.text, tickfont: { size: 10 }
+                    },
                     marker: { line: { width: 0.15, color: 'rgba(255,255,255,0.3)' } }
                 });
 
@@ -706,10 +696,7 @@
                     hoverinfo: 'none'
                 });
 
-                // Same gradient legend as counties (same metric, same scale)
-                document.getElementById('gradientLegend').style.display = '';
                 document.getElementById('regionLegend').style.display = 'none';
-                buildHTMLLegend(cfg, buildTicks(maxLogR, 5).ticktext);
 
             } else {
                 // --- Counties: quantitative metric ---
@@ -742,16 +729,22 @@
                     );
                 });
 
+                const cTicks = buildColorbarTicks(maxLogAll, 5);
                 traces.push({
                     type: 'choroplethmapbox', geojson: txGeojson,
                     locations: locs, z: zVals, text: hover, hoverinfo: 'text',
-                    colorscale: cfg.scale, zmin: 0, zmax: maxLogAll, showscale: false,
+                    colorscale: cfg.scale, zmin: 0, zmax: maxLogAll,
+                    showscale: true,
+                    colorbar: {
+                        title: { text: cfg.label, font: { size: 11 } },
+                        orientation: 'h', x: 0.5, y: -0.02,
+                        len: 0.7, thickness: 12,
+                        tickvals: cTicks.vals, ticktext: cTicks.text, tickfont: { size: 10 }
+                    },
                     marker: { line: { width: 0.5, color: '#444' } }
                 });
 
-                document.getElementById('gradientLegend').style.display = '';
                 document.getElementById('regionLegend').style.display = 'none';
-                buildHTMLLegend(cfg, buildTicks(maxLogAll, 5).ticktext);
             }
 
             // Always full Texas view — graying handles the visual focus
@@ -778,7 +771,7 @@
                     zoom: w < 400 ? 4.0 : 4.8,
                     layers: mapboxLayers
                 },
-                margin: { t: 0, b: 0, l: 0, r: 0 }, height: h, autosize: true
+                margin: { t: 0, b: 40, l: 0, r: 0 }, height: h, autosize: true
             };
 
             // Data center scatter overlay
@@ -845,23 +838,14 @@
         }
 
         // --- Legend builder ---
-        function buildTicks(maxLog, count) {
-            const ticktext = [];
+        function buildColorbarTicks(maxLog, count) {
+            const vals = [], text = [];
             for (let i = 0; i < count; i++) {
                 const logVal = (maxLog * i) / (count - 1);
-                ticktext.push(Math.round(Math.pow(10, logVal) - 1).toLocaleString());
+                vals.push(logVal);
+                text.push(Math.round(Math.pow(10, logVal) - 1).toLocaleString());
             }
-            return { ticktext };
-        }
-
-        function buildHTMLLegend(cfg, ticktext) {
-            const colors = cfg.scale.map(s => s[1]);
-            document.getElementById('legendBar').style.background = `linear-gradient(to right, ${colors.join(', ')})`;
-            document.getElementById('legendLabel').textContent = cfg.label;
-            document.getElementById('legendSpacer').textContent = cfg.label;
-            const ticksEl = document.getElementById('legendTicks');
-            ticksEl.innerHTML = '';
-            ticktext.forEach(t => { const s = document.createElement('span'); s.textContent = t; ticksEl.appendChild(s); });
+            return { vals, text };
         }
 
         // --- Sector breakdown ---
