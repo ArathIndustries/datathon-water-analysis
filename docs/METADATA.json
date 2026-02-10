@@ -7,8 +7,7 @@
     "last_updated": "2026-02-08",
     "source_organization": "Texas Department of Biological Resources (TWDB)",
     "license": "Public Domain",
-    "project_url": "https://github.com/yourusername/datathon-water-analysis",
-    "contact_email": "datathon@example.com"
+    "project_url": "https://github.com/ArathIndustries/datathon-water-analysis"
   },
   "datasets": [
     {
@@ -820,6 +819,32 @@
           "missing_values": 0
         }
       ]
+    },
+    {
+      "dataset_id": "epa_datacenters",
+      "file_name": "datacenters_locations.csv",
+      "description": "Data center facility locations in Texas from EPA Facility Registry Service",
+      "record_count": 31,
+      "source": {
+        "primary": "EPA Facility Registry Service (FRS)",
+        "url": "https://www.epa.gov/frs",
+        "access_date": "2026-02-06"
+      },
+      "license": "Public Domain",
+      "key_fields": ["PRIMARY_NAME", "CITY_NAME", "COUNTY_NAME", "LATITUDE83", "LONGITUDE83"]
+    },
+    {
+      "dataset_id": "epa_semifabs",
+      "file_name": "semi_facilites_with_location.csv",
+      "description": "Semiconductor fabrication facility locations in Texas from EPA Facility Registry Service",
+      "record_count": 138,
+      "source": {
+        "primary": "EPA Facility Registry Service (FRS)",
+        "url": "https://www.epa.gov/frs",
+        "access_date": "2026-02-06"
+      },
+      "license": "Public Domain",
+      "key_fields": ["PRIMARY_NAME", "CITY_NAME", "COUNTY_NAME", "LATITUDE83", "LONGITUDE83"]
     }
   ],
   "data_quality_metrics": {
@@ -940,31 +965,16 @@
     },
     "notes": "Near-term projections based on recent trends. Long-term projections increasingly uncertain due to climate and policy unpredictability."
   },
-  "contact_information": {
-    "organization": "Texas Department of Biological Resources (TWDB)",
-    "website": "https://texasstatewaterplan.org/",
-    "contact_url": "https://texasstatewaterplan.org/contact",
-    "email": "contact@twdb.texas.gov",
-    "phone": "(512) 463-7847"
-  },
-  "citation_information": {
-    "preferred_citation": "Texas Department of Biological Resources. (2026). State Water Plan 2026 [Dataset]. Retrieved from https://texasstatewaterplan.org/",
-    "citation_formats": {
-      "APA": "Texas Department of Biological Resources. (2026). State water plan 2026 [Data set]. Retrieved from https://texasstatewaterplan.org/",
-      "Chicago": "Texas Department of Biological Resources. \"State Water Plan 2026.\" Accessed February 6, 2026. https://texasstatewaterplan.org/",
-      "MLA": "Texas Department of Biological Resources. \"State Water Plan 2026.\" TWDB, 2026, texasstatewaterplan.org/."
+  "data_sources": {
+    "twdb": {
+      "name": "Texas Water Development Board — State Water Plan 2026",
+      "url": "https://texasstatewaterplan.org/",
+      "license": "Public Domain"
+    },
+    "epa_frs": {
+      "name": "EPA Facility Registry Service",
+      "url": "https://www.epa.gov/frs",
+      "license": "Public Domain"
     }
-  },
-  "file_paths": {
-    "mac_path": "/Volumes/Arath/Automation_Station/Projects/Datathon/raw_data/Texas State Water Plan/",
-    "windows_path": "C:\\Users\\Arath\\Documents\\Datathon\\raw_data\\Texas State Water Plan\\",
-    "relative_project_path": "raw_data/Texas State Water Plan/"
-  },
-  "document_metadata": {
-    "version": "1.0",
-    "created_date": "2026-02-08",
-    "last_updated": "2026-02-08",
-    "maintainer": "Datathon Team",
-    "next_review_date": "2027-02-08"
   }
 }

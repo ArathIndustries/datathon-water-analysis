@@ -1,196 +1,136 @@
-# datathon-water-analysis
-<<<<<<< HEAD
+# Texas Water Crisis Analysis Dashboard
 
-Interactive dashboard analyzing Texas water crisis and forecasting infrastructure viability.
+Interactive dashboard analyzing which Texas counties can support data center and semiconductor infrastructure without triggering a water crisis. Built for **TXST Love Data Week 2026**.
 
-## Overview
+**Live:** Deployed via Vercel from `public/` directory.
 
-This project develops a comprehensive data analysis and visualization platform for understanding Texas water resources, demand patterns, and long-term infrastructure sustainability. Using real-world data from the Texas Department of Biological Resources (TWDB) and USGS Water Services, we provide interactive tools for exploring complex water management challenges across Texas.
-
-## Features
-
-- **Interactive Plotly Charts**: Dynamic, responsive visualizations for data exploration
-- **Real-time Filtering**: Filter datasets by region, time period, and data type
-- **Data Export**: Export processed datasets in multiple formats (CSV, JSON)
-- **Streamlit Dashboard**: Interactive web application for real-time analysis
-- **Static HTML Dashboard**: Standalone HTML reports for offline access and sharing
-- **Multi-source Data Integration**: Combines TWDB and USGS datasets into unified analysis platform
-- **Predictive Forecasting**: Infrastructure viability forecasts based on historical trends
+---
 
 ## Quick Start
 
-### Installation (Windows)
+Clone and open — no build step, no dependencies:
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/datathon-water-analysis.git
-   cd datathon-water-analysis
-   ```
+```bash
+git clone https://github.com/ArathIndustries/datathon-water-analysis.git
+cd datathon-water-analysis
+```
 
-2. **Create a Python virtual environment**
-   ```bash
-   python -m venv venv
-   venv\Scripts\activate
-   ```
+**Option A** — Open directly:
+```
+open public/index.html    # macOS
+start public/index.html   # Windows
+```
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+**Option B** — Local server (enables data loading):
+```bash
+python -m http.server 8000 -d public
+# then open http://localhost:8000
+```
 
-4. **Run the Streamlit dashboard**
-   ```bash
-   streamlit run app.py
-   ```
+---
 
-5. **Access the dashboard**
-   - Open your browser and navigate to `http://localhost:8501`
+## Research Question
 
-### Quick Configuration
+> Which Texas counties can support data center and semiconductor infrastructure over 5, 10, and 20 years without triggering a water crisis?
 
-Edit `config.json` to customize:
-- Data directories (default: `C:\Users\Arath\Documents\water_data\`)
-- Map boundaries and zoom levels
-- Chart color schemes
-- Export settings
+## Key Findings (2030-2050 projections)
 
-## File Structure
+- **36 of 207** deficit counties hold **80%** of total statewide deficit (Pareto pattern)
+- Industrial counties average **21.7%** deficit vs **19.2%** for non-industrial
+- **31** data centers across 18 counties, **138** semiconductor fabs across 20 counties
+- Deficit is highly concentrated, not uniformly distributed
+
+---
+
+## Dashboard Features
+
+- **Interactive choropleth map** — 254 Texas counties, color-coded by Water Needs, Demand, Population, or Supply
+- **Counties / Regions toggle** — switch between county-level and TWDB planning region views
+- **Data Center + Semiconductor Fab overlays** — facility markers from EPA FRS
+- **Risk Matrix** — ISO 31000 framework: water stress tiers x facility concentration
+- **Pareto Chart** — 80/20 rule: cumulative deficit concentration + facility co-location
+- **Scatter Plot** — Severity score (%) vs industrial facility count with tier bands
+- **Box Plot** — Severity distribution comparison: industrial vs non-industrial counties
+- **Risk Table** — Top 25 counties ranked by unmet need with severity coloring
+- **Global filters** — Region (A-P) and Year (2020-2070) update all charts simultaneously
+- **Export** — CSV download and Plotly built-in PNG export on all charts
+
+---
+
+## Project Structure
 
 ```
 datathon-water-analysis/
-├── README.md                 # This file
-├── CONTRIBUTING.md          # Contribution guidelines
-├── SOURCES.md               # Data sources and attribution
-├── requirements.txt         # Python dependencies
-├── config.json              # Configuration settings
-├── app.py                   # Main Streamlit application
-├── data/
-│   ├── raw/                 # Original datasets from sources
-│   │   ├── twdb/            # TWDB datasets
-│   │   └── usgs/            # USGS datasets
-│   ├── processed/           # Cleaned and transformed data
-│   └── metadata.json        # Data schema and documentation
-├── src/
-│   ├── data_processing.py   # Data cleaning and transformation
-│   ├── visualization.py     # Chart and dashboard creation
-│   ├── forecasting.py       # Predictive models
-│   └── utils.py             # Helper functions
-├── dashboards/
-│   ├── static/              # HTML dashboard exports
-│   └── templates/           # Jinja2 templates
-├── notebooks/               # Jupyter notebooks for exploration
-└── tests/                   # Unit and integration tests
+├── README.md
+├── vercel.json                              # Vercel config (serves public/)
+├── .gitignore
+│
+├── docs/
+│   ├── METHODOLOGY.md                       # Chart methodology (IE frameworks)
+│   └── METADATA.json                        # Machine-readable dataset metadata
+│
+├── scripts/
+│   ├── process_data.py                      # Data processing pipeline
+│   └── generate_master_dataset.py           # Master county dataset generator
+│
+└── public/
+    ├── index.html                           # Entire dashboard (HTML + CSS + JS)
+    └── data/
+        ├── demands.csv                      # TWDB demand projections (3,341 rows)
+        ├── existing.csv                     # TWDB existing supply (6,415 rows)
+        ├── needs.csv                        # TWDB unmet needs (3,341 rows)
+        ├── population.csv                   # TWDB population projections (3,341 rows)
+        ├── strategies.csv                   # TWDB water management strategies
+        ├── datacenters_locations.csv        # EPA FRS data centers (31 rows)
+        ├── semi_facilites_with_location.csv # EPA FRS semiconductor fabs (138 rows)
+        ├── tx-counties.geojson              # 254 Texas county boundaries
+        ├── tx-regions.geojson               # 16 TWDB region boundaries
+        └── processed/                       # Generated outputs from scripts/
 ```
+
+---
 
 ## Data Sources
 
-### Texas Department of Biological Resources (TWDB)
+| Source | Description | Link |
+|--------|-------------|------|
+| TWDB State Water Plan 2026 | Demand, supply, needs, population projections (2020-2070) | [texasstatewaterplan.org](https://texasstatewaterplan.org/) |
+| EPA Facility Registry Service | Data center and semiconductor fab locations | [epa.gov/frs](https://www.epa.gov/frs) |
+| TWDB / US Census | County and region boundary geometries | [twdb.texas.gov](https://www.twdb.texas.gov/) |
 
-**State Water Plan 2026**
+---
 
-Comprehensive state water planning data with 50-year projections:
+## Reproducing Processed Data
 
-- **Datasets**:
-  - `demands.csv` - Water demand by sector and region
-  - `existing.csv` - Existing water supply infrastructure
-  - `needs.csv` - Water supply needs projection
-  - `population.csv` - Population projections by region
-  - `strategies.csv` - Water management strategy effectiveness
+The dashboard loads raw CSVs client-side and computes everything in the browser. The Python scripts are for offline analysis and reproducibility:
 
-- **Time Period**: 1975-2024
-- **Geographic Coverage**: All 16 TWDB Planning Regions
-- **Website**: [https://texasstatewaterplan.org/](https://texasstatewaterplan.org/)
-- **License**: Public data, proper attribution required
-- **Access Date**: [Update with actual access date]
-
-### USGS Water Services
-
-**Real-time and Historical Water Data**
-
-- **Stations**: 3 Texas monitoring stations
-  - Big Sandy Creek near Bridgeport
-  - Bridgeport Reservoir
-  - Nueces River
-
-- **Metrics**:
-  - Streamflow (cubic feet per second)
-  - Gage height (feet above datum)
-  - Reservoir storage (acre-feet)
-  - Water elevation (feet)
-
-- **Time Period**: 2022-2024 (collected data)
-- **Website**: [https://waterservices.usgs.gov/](https://waterservices.usgs.gov/)
-- **License**: Public domain
-- **Update Frequency**: Daily (real-time data)
-
-See [SOURCES.md](SOURCES.md) for detailed source documentation and attribution guidelines.
-
-## Deployment
-
-### GitHub Repository
-
-This project is version controlled on GitHub:
-```
-https://github.com/yourusername/datathon-water-analysis
+```bash
+# Generate processed datasets (requires Python 3)
+python scripts/process_data.py --year 2050
+python scripts/generate_master_dataset.py
 ```
 
-### Vercel Deployment
+Output goes to `public/data/processed/`.
 
-Static dashboards and web interface deployed on Vercel:
+---
 
-1. **Connect your GitHub repository** to Vercel
-2. **Set environment variables** in Vercel dashboard
-3. **Configure build settings**:
-   - Framework: Other
-   - Build command: `python build_static_dashboard.py`
-   - Output directory: `dashboards/static/`
+## Tech Stack
 
-4. **Deploy**: Push to main branch to trigger automatic deployment
+- **Frontend:** Vanilla HTML/CSS/JS (single file, no build step)
+- **Charts:** [Plotly.js](https://plotly.com/javascript/) 2.35.2 (CDN)
+- **CSV Parsing:** [PapaParse](https://www.papaparse.com/) 5.4.1 (CDN)
+- **Map:** Plotly `choroplethmapbox` with OpenStreetMap tiles (no API key)
+- **Hosting:** [Vercel](https://vercel.com/) (auto-deploy from GitHub)
 
-Deployment URL: `https://datathon-water-analysis.vercel.app/`
+---
 
-## Contributing
+## Methodology
 
-We welcome contributions from researchers, developers, and water resource professionals. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
+See [docs/METHODOLOGY.md](docs/METHODOLOGY.md) for detailed chart methodology documentation, including:
+- Aggregation process and severity classification
+- IE framework justification for each chart (ISO 31000, Pareto, OLS, distribution analysis)
+- Log-scale normalization for map visualization
 
-- How to contribute
-- Branch naming conventions
-- Commit message standards
-- Code style requirements
-- Testing procedures
+## Dataset Metadata
 
-## Team
-
-**Project Leadership**
-- Project Manager: [Name]
-- Data Science Lead: [Name]
-- Visualization Lead: [Name]
-
-**Contributors**
-- [Name] - Data processing and pipeline
-- [Name] - Dashboard development
-- [Name] - Forecasting models
-- [Name] - Documentation and testing
-
-## License
-
-This project is licensed under the MIT License. See LICENSE file for details.
-
-Data from TWDB is public domain. Data from USGS is public domain. When using this project or its data, please provide appropriate attribution to both TWDB and USGS.
-
-## Questions & Support
-
-For questions or support:
-- Open an issue on GitHub
-- Email: [contact@example.com]
-- Check our documentation: [SOURCES.md](SOURCES.md) and [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## References
-
-- Texas State Water Plan: https://texasstatewaterplan.org/
-- USGS Water Services: https://waterservices.usgs.gov/
-- TPWD Water Resources: https://tpwd.texas.gov/
-- TCEQ Water Quality: https://www.tceq.texas.gov/
-=======
-Interactive dashboard for Texas water crisis analysis
->>>>>>> d76125a90f0fd3e23892e00ee423c7d1b8ae8817
+See [docs/METADATA.json](docs/METADATA.json) for machine-readable field-level documentation of all datasets.

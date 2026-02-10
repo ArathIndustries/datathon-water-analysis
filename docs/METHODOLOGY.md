@@ -43,7 +43,7 @@ Facility counts are aggregated by matching `COUNTY_NAME` from EPA FRS data to TW
 Counties are classified into deficit tiers based on the ratio of unmet needs to total demand:
 
 ```
-deficit_pct = (needs / demand) * 100
+severity_pct = (needs / demand) * 100
 ```
 
 | Tier | Deficit % Range | Color Code |
@@ -58,33 +58,14 @@ deficit_pct = (needs / demand) * 100
 
 ## Chart Methodologies
 
-### 1. Sankey Diagram — "Where Does the Water Go?"
-
-**Framework:** Mass/flow balance analysis (Industrial Engineering — process flow)
-
-**Purpose:** Visualize the flow of water from supply through demand sectors to identify where shortfalls occur.
-
-**Methodology:**
-1. Aggregate existing supply (`WS{year}`) by sector across all counties
-2. Aggregate unmet needs (`N{year}`) by sector
-3. Compute met demand per sector: `met = max(0, supply - unmet)`
-4. Construct flow links:
-   - **Existing Supply -> Sector**: volume = sector supply
-   - **Sector -> Demand Met**: volume = met demand
-   - **Sector -> Water Deficit**: volume = unmet needs
-
-**Interpretation:** Width of each flow is proportional to volume. The red "Water Deficit" node on the right shows the total system shortfall. Sectors with thick red links are the primary drivers of the deficit.
-
----
-
-### 2. Risk Matrix — "Which Counties Are in Danger?"
+### 1. Risk Matrix — "Which Counties Are in Danger?"
 
 **Framework:** Risk assessment matrix (ISO 31000 / IE safety analysis)
 
 **Purpose:** Categorize counties by two independent risk dimensions to identify the intersection of water stress and industrial development.
 
 **Methodology:**
-1. **Y-axis — Water Stress Level:** Classify each county using the deficit tier system above (None / Low / Moderate / Severe / Critical)
+1. **Y-axis — Water Stress Level:** Classify each county using the severity tier system above (None / Low / Moderate / Severe / Critical)
 2. **X-axis — Industrial Concentration:** Bucket counties by total facility count (Data Centers + Semiconductor Fabs):
    - 0 facilities
    - 1-3 facilities
@@ -93,11 +74,11 @@ deficit_pct = (needs / demand) * 100
 3. Count counties in each (stress, facility) cell
 4. Render as a heatmap where color intensity = county count
 
-**Interpretation:** The top-right quadrant (Critical stress + 10+ facilities) is the "Danger Zone" — counties with both severe water shortfalls and high industrial water demand. These are the highest-priority targets for intervention.
+**Interpretation:** The top-right quadrant (Critical stress + 10+ facilities) is the "Danger Zone" — counties with both severe water shortfalls and high industrial water demand.
 
 ---
 
-### 3. Pareto Chart — "How Concentrated Is the Problem?"
+### 2. Pareto Chart — "How Concentrated Is the Problem?"
 
 **Framework:** Pareto principle / 80-20 rule (IE quality management — Juran's vital few)
 
@@ -119,40 +100,25 @@ deficit_pct = (needs / demand) * 100
 
 ---
 
-### 4. R² Regression — "Is There a Statistical Link?"
+### 3. Scatter Plot — "Water Stress vs. Industrial Presence"
 
-**Framework:** Ordinary Least Squares (OLS) linear regression
+**Framework:** Exploratory data analysis with severity tier overlay
 
-**Purpose:** Quantify the statistical relationship between industrial facility presence and water deficit.
+**Purpose:** Visualize the relationship between industrial facility count and water stress severity for each county.
 
 **Methodology:**
-1. For each county with either facilities or deficit > 0:
-   - X = total industrial facilities (DC + Fabs)
-   - Y = water deficit in acre-feet
-2. Compute OLS regression coefficients:
-   ```
-   m = (n * SUM(X*Y) - SUM(X) * SUM(Y)) / (n * SUM(X²) - SUM(X)²)
-   b = (SUM(Y) - m * SUM(X)) / n
-   ```
-3. Compute coefficient of determination (R²):
-   ```
-   SS_res = SUM((y_i - (m * x_i + b))²)    // residual sum of squares
-   SS_tot = SUM((y_i - mean(Y))²)           // total sum of squares
-   R² = 1 - SS_res / SS_tot
-   ```
-4. Plot scatter with regression line overlay
+1. For each county with `demand > 0` and either facilities or deficit > 0:
+   - X = total industrial facilities (Data Centers + Semiconductor Fabs)
+   - Y = severity score (%) = `(needs / demand) * 100`
+2. Color each point by its severity tier
+3. Overlay horizontal severity tier bands (Low, Moderate, Severe, Critical) as colored background regions
+4. Display county name and details on hover
 
-**Interpretation:**
-- R² close to 1.0 = strong linear relationship
-- R² close to 0.0 = no linear relationship
-- The regression line shows the expected deficit increase per additional facility
-- Points are colored by severity tier to show stress clustering
-
-**Limitations:** Linear regression assumes a monotonic linear relationship. With most counties having 0 facilities, the R² may be low even if there's a meaningful pattern among counties that DO have facilities. The box plot distribution chart complements this analysis.
+**Interpretation:** Points in the upper-right indicate counties with both high industrial presence and severe water stress. The tier bands provide immediate visual context for how each county's severity compares to the classification thresholds.
 
 ---
 
-### 5. Box Plot Distribution — "Are Industrial Counties Worse Off?"
+### 4. Box Plot Distribution — "Are Industrial Counties Worse Off?"
 
 **Framework:** Comparative distribution analysis (statistical hypothesis testing)
 
@@ -162,36 +128,17 @@ deficit_pct = (needs / demand) * 100
 1. Split counties into two groups:
    - **Industrial:** counties where `(data_centers + semi_fabs) > 0` AND `demand > 0`
    - **Non-industrial:** counties where `facilities = 0` AND `demand > 0`
-2. For each county, compute: `deficit_pct = (needs / demand) * 100`
+2. For each county, compute: `severity_pct = (needs / demand) * 100`
 3. Generate box-and-whisker plot for each group showing:
    - **Median** (center line)
    - **Q1, Q3** (box edges — interquartile range)
    - **Whiskers** (1.5 * IQR)
    - **Mean** (diamond marker, `boxmean: true`)
    - **All data points** (jittered for visibility)
-4. Annotate with group means
+4. Overlay severity tier bands matching the scatter plot
+5. Annotate with group means
 
 **Interpretation:** If the industrial group's box is higher (larger median, higher mean), counties hosting data centers and semiconductor fabs tend to face worse water deficits relative to their demand. The sample sizes (n=) show the balance between groups.
-
----
-
-### 6. Statewide Projection — "How Fast Is It Getting Worse?"
-
-**Framework:** Time-series trend analysis
-
-**Purpose:** Show the trajectory of supply, demand, and deficit over the 50-year planning horizon.
-
-**Methodology:**
-1. For each year in [2020, 2030, 2040, 2050, 2060, 2070]:
-   ```
-   total_demand[year] = SUM(D{year}) across all entities
-   total_supply[year] = SUM(WS{year}) across all entities
-   total_needs[year]  = SUM(N{year}) across all entities
-   ```
-2. Plot three lines: Demand, Supply, Unmet Need
-3. Fill the area under Unmet Need to visualize the growing gap
-
-**Interpretation:** The widening gap between demand and supply lines shows the accelerating crisis. The red-filled deficit area makes the problem's growth rate visceral.
 
 ---
 
