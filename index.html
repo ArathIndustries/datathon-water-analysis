@@ -210,6 +210,25 @@
             th, td { padding: 6px 8px; font-size: 0.85em; }
             footer { padding: 12px; font-size: 0.9em; }
         }
+
+        /* Data center overlay toggle */
+        .map-overlay-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85em;
+            color: #555;
+        }
+        .map-overlay-toggle input[type="checkbox"] {
+            accent-color: #667eea;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        .map-overlay-toggle label {
+            cursor: pointer;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -261,9 +280,15 @@
         <div class="map-section">
             <div class="map-header">
                 <span class="map-title" id="countyMapTitle">All Texas — 254 Counties</span>
-                <div class="map-toggle">
-                    <button class="active" data-mode="counties" onclick="toggleMapView('counties')">Counties</button>
-                    <button data-mode="regions" onclick="toggleMapView('regions')">Regions</button>
+                <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                    <div class="map-toggle">
+                        <button class="active" data-mode="counties" onclick="toggleMapView('counties')">Counties</button>
+                        <button data-mode="regions" onclick="toggleMapView('regions')">Regions</button>
+                    </div>
+                    <div class="map-overlay-toggle">
+                        <input type="checkbox" id="showDataCenters" onchange="updateCountyMap()">
+                        <label for="showDataCenters">Show Data Centers</label>
+                    </div>
                 </div>
             </div>
             <div class="map-wrapper"><div id="countyMap"></div></div>
@@ -317,7 +342,7 @@
     </div>
 
     <script>
-        let allData = { demands: [], existing: [], needs: [], population: [], strategies: [] };
+        let allData = { demands: [], existing: [], needs: [], population: [], strategies: [], datacenters: [] };
         let txGeojson = null;
         let txRegionsGeojson = null; // dissolved region boundaries for overlay
         let countyToRegion = {};   // "TRAVIS" -> "G"
@@ -386,6 +411,15 @@
             if (allData.demands.length === 0) {
                 showError('Could not load data files. Use a local server instead of opening the file directly.');
             }
+
+            // Load data center locations
+            try {
+                const dcResp = await fetch('data/datacenters_locations.csv');
+                if (dcResp.ok) {
+                    const dcText = await dcResp.text();
+                    allData.datacenters = Papa.parse(dcText, { header: true, skipEmptyLines: true }).data;
+                }
+            } catch (e) { console.warn('Could not load datacenters_locations.csv:', e); }
         }
 
         async function loadTexasGeojson() {
@@ -703,6 +737,34 @@
                 },
                 margin: { t: 0, b: 0, l: 0, r: 0 }, height: h, autosize: true
             };
+
+            // Data center scatter overlay
+            if (document.getElementById('showDataCenters').checked && allData.datacenters.length > 0) {
+                const dcLons = [], dcLats = [], dcText = [];
+                allData.datacenters.forEach(dc => {
+                    const lat = parseFloat(dc.LATITUDE83);
+                    const lon = parseFloat(dc.LONGITUDE83);
+                    if (!isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0) {
+                        dcLats.push(lat);
+                        dcLons.push(lon);
+                        dcText.push(
+                            `<b>${dc.PRIMARY_NAME || 'Unknown'}</b><br>` +
+                            `${dc.CITY_NAME || ''}, ${dc.COUNTY_NAME || ''}<br>` +
+                            `${dc.LOCATION_ADDRESS || ''}`
+                        );
+                    }
+                });
+                if (dcLons.length > 0) {
+                    traces.push({
+                        type: 'scattermapbox',
+                        lon: dcLons, lat: dcLats,
+                        text: dcText, hoverinfo: 'text',
+                        mode: 'markers',
+                        marker: { size: 12, color: '#667eea', opacity: 0.9 },
+                        name: 'Data Centers'
+                    });
+                }
+            }
 
             Plotly.newPlot('countyMap', traces, layout, { responsive: true });
 
