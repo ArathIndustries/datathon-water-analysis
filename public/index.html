@@ -47,7 +47,9 @@
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             text-align: center;
+            position: relative;
         }
+        .insight-card > .info-tip { position: absolute; top: 6px; right: 6px; }
 
         .insight-value { font-size: 1.8em; font-weight: bold; line-height: 1.2; }
         .insight-label { font-size: 0.8em; color: #666; margin-top: 2px; }
@@ -255,15 +257,18 @@
         </header>
 
         <div class="insights-grid">
-            <div class="insight-card" title="Total unmet water needs (Demand − Supply, where positive) summed across all counties for the selected year and region">
+            <div class="insight-card">
+                <span class="info-tip" data-tip="Total unmet water needs (Demand − Supply, where positive) summed across all counties for the selected year and region">i</span>
                 <div class="insight-value" id="insightDeficit" style="color:#e31a1c;">--</div>
                 <div class="insight-label" id="insightDeficitLabel">Statewide Water Deficit (acre-ft)</div>
             </div>
-            <div class="insight-card" title="Number of counties where projected water demand exceeds existing supply capacity">
+            <div class="insight-card">
+                <span class="info-tip" data-tip="Number of counties where projected water demand exceeds existing supply capacity">i</span>
                 <div class="insight-value" id="insightCounties" style="color:#e65100;">--</div>
                 <div class="insight-label" id="insightCountiesLabel">Counties with Unmet Needs</div>
             </div>
-            <div class="insight-card" title="Total population living in counties that have any water deficit for the selected year">
+            <div class="insight-card">
+                <span class="info-tip" data-tip="Total population living in counties that have any water deficit for the selected year">i</span>
                 <div class="insight-value" id="insightPopulation" style="color:#54278f;">--</div>
                 <div class="insight-label" id="insightPopLabel">People in At-Risk Counties</div>
             </div>
@@ -324,19 +329,23 @@
 
         <!-- The Overlap: Industrial facilities in water-stressed areas -->
         <div class="insights-grid" style="grid-template-columns: repeat(4, 1fr);">
-            <div class="insight-card" title="Data centers located in counties where Severity ≥ 10% (Moderate tier or higher). Severity = Needs ÷ Demand × 100">
+            <div class="insight-card">
+                <span class="info-tip" data-tip="Data centers located in counties where Severity ≥ 10% (Moderate tier or higher). Severity = Needs ÷ Demand × 100">i</span>
                 <div class="insight-value" id="overlapDcDeficit" style="color:#00838f;">--</div>
                 <div class="insight-label">Data Centers in Water-Stressed Counties (10%+ deficit)</div>
             </div>
-            <div class="insight-card" title="Semiconductor fabs located in counties where Severity ≥ 10% (Moderate tier or higher)">
+            <div class="insight-card">
+                <span class="info-tip" data-tip="Semiconductor fabs located in counties where Severity ≥ 10% (Moderate tier or higher)">i</span>
                 <div class="insight-value" id="overlapFabDeficit" style="color:#e65100;">--</div>
                 <div class="insight-label">Semi Fabs in Water-Stressed Counties (10%+ deficit)</div>
             </div>
-            <div class="insight-card" title="Total unmet water need (acre-feet) in counties that have both ≥10% severity and at least one industrial facility">
+            <div class="insight-card">
+                <span class="info-tip" data-tip="Total unmet water need (acre-feet) in counties that have both ≥10% severity and at least one industrial facility">i</span>
                 <div class="insight-value" id="overlapDeficitTotal" style="color:#b71c1c;">--</div>
                 <div class="insight-label">Combined Deficit in Stressed Industrial Counties (ac-ft)</div>
             </div>
-            <div class="insight-card" title="Population living in counties with both ≥10% severity and at least one data center or semiconductor fab">
+            <div class="insight-card">
+                <span class="info-tip" data-tip="Population living in counties with both ≥10% severity and at least one data center or semiconductor fab">i</span>
                 <div class="insight-value" id="overlapPopAtRisk" style="color:#4a148c;">--</div>
                 <div class="insight-label">People in Stressed Industrial Counties</div>
             </div>
