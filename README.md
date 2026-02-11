@@ -63,7 +63,6 @@ python -m http.server 8000 -d public
 ```
 datathon-water-analysis/
 ├── README.md
-├── CURRENT_STATUS.md                        # Project audit and status tracking
 ├── vercel.json                              # Vercel config (serves public/)
 ├── .gitignore
 │
