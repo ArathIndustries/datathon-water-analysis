@@ -253,10 +253,11 @@
             </select>
 
             <select id="mapMetricSelect" onchange="updateCountyMap()">
-                <option value="needs">Color: Water Needs</option>
-                <option value="demand">Color: Water Demand</option>
-                <option value="population">Color: Population</option>
-                <option value="supply">Color: Existing Supply</option>
+                <option value="severity" selected>Severity</option>
+                <option value="needs">Water Needs</option>
+                <option value="demand">Water Demand</option>
+                <option value="population">Population</option>
+                <option value="supply">Existing Supply</option>
             </select>
 
             <button onclick="downloadData()">Export CSV</button>
@@ -359,7 +360,8 @@
             needs:      { label: 'Water Needs (ac-ft)', scale: [[0,'#ffffcc'],[0.25,'#fed976'],[0.5,'#fd8d3c'],[0.75,'#e31a1c'],[1,'#800026']] },
             demand:     { label: 'Water Demand (ac-ft)', scale: [[0,'#eff3ff'],[0.25,'#bdd7e7'],[0.5,'#6baed6'],[0.75,'#2171b5'],[1,'#08306b']] },
             population: { label: 'Population', scale: [[0,'#f2f0f7'],[0.25,'#cbc9e2'],[0.5,'#9e9ac8'],[0.75,'#756bb1'],[1,'#54278f']] },
-            supply:     { label: 'Existing Supply (ac-ft)', scale: [[0,'#edf8e9'],[0.25,'#bae4b3'],[0.5,'#74c476'],[0.75,'#238b45'],[1,'#00441b']] }
+            supply:     { label: 'Existing Supply (ac-ft)', scale: [[0,'#edf8e9'],[0.25,'#bae4b3'],[0.5,'#74c476'],[0.75,'#238b45'],[1,'#00441b']] },
+            severity:   { label: 'Severity (%)', scale: [[0,'#2e7d32'],[0.10,'#558b2f'],[0.25,'#f57f17'],[0.50,'#e65100'],[1,'#b71c1c']] }
         };
 
 
@@ -479,7 +481,7 @@
         }
 
         // Muted gray trace for non-selected counties (preserves data shape at ~75% gray)
-        function makeGrayTrace(features, region, metricAgg) {
+        function makeGrayTrace(features, region, metricAgg, isSeverity) {
             const locs = [], zVals = [], hover = [];
             features.forEach(f => {
                 const name = f.properties.NAME.toUpperCase();
@@ -487,7 +489,7 @@
                 if (r !== region) {
                     locs.push(f.id);
                     const raw = (metricAgg[name] || {}).total || 0;
-                    zVals.push(Math.log10(raw + 1));
+                    zVals.push(isSeverity ? raw : Math.log10(raw + 1));
                     hover.push(`<b>${f.properties.NAME}</b><br>Region ${r}`);
                 }
             });
@@ -588,14 +590,24 @@
             const needsAgg = aggregateByCounty(allData.needs, 'N', year, '');
             const popAgg = aggregateByCounty(allData.population, 'P', year, '');
             const supplyAgg = aggregateByCounty(allData.existing, 'WS', year, '');
-            const metricAgg = { needs: needsAgg, demand: demandAgg, population: popAgg, supply: supplyAgg }[metric];
+
+            // Compute severity % per county (needs / demand * 100)
+            const severityAgg = {};
+            for (const name of new Set([...Object.keys(demandAgg), ...Object.keys(needsAgg)])) {
+                const demand = (demandAgg[name] || {}).total || 0;
+                const needs = (needsAgg[name] || {}).total || 0;
+                severityAgg[name] = { total: demand > 0 ? (needs / demand) * 100 : 0, region: (demandAgg[name] || {}).region || '' };
+            }
+
+            const isSeverity = metric === 'severity';
+            const metricAgg = { needs: needsAgg, demand: demandAgg, population: popAgg, supply: supplyAgg, severity: severityAgg }[metric];
 
             const features = txGeojson.features;
             const traces = [];
 
             // Gray out non-selected counties when a region is picked
             if (region) {
-                const gray = makeGrayTrace(features, region, metricAgg);
+                const gray = makeGrayTrace(features, region, metricAgg, isSeverity);
                 if (gray) traces.push(gray);
             }
 
@@ -611,14 +623,22 @@
                 for (const [c, d] of Object.entries(popAgg)) { const r = countyToRegion[c]; if (r) rPop[r] = (rPop[r] || 0) + d.total; }
                 for (const [c, d] of Object.entries(metricAgg)) { const r = countyToRegion[c]; if (r) rMetric[r] = (rMetric[r] || 0) + d.total; }
 
-                // Log-normalize region values (same approach as counties)
+                // Normalize region values
                 const rLogValues = {};
                 let maxLogR = 0;
-                for (const r of allRegions) {
-                    rLogValues[r] = Math.log10((rMetric[r] || 0) + 1);
-                    maxLogR = Math.max(maxLogR, rLogValues[r]);
+                if (isSeverity) {
+                    // Region severity = total regional needs / total regional demand * 100
+                    for (const r of allRegions) {
+                        rLogValues[r] = rDemand[r] > 0 ? (rNeeds[r] || 0) / rDemand[r] * 100 : 0;
+                    }
+                    maxLogR = 100; // Fixed scale
+                } else {
+                    for (const r of allRegions) {
+                        rLogValues[r] = Math.log10((rMetric[r] || 0) + 1);
+                        maxLogR = Math.max(maxLogR, rLogValues[r]);
+                    }
+                    maxLogR = maxLogR || 1;
                 }
-                maxLogR = maxLogR || 1;
 
                 // Build colored trace — each county gets its region's aggregate value
                 const locs = [], zVals = [], hover = [];
@@ -629,10 +649,11 @@
                     locs.push(f.id);
                     zVals.push(rLogValues[r] || 0);
                     const deficit = rDemand[r] > 0 ? ((rNeeds[r] || 0) / rDemand[r] * 100).toFixed(1) : '0.0';
+                    const rTierName = deficitTiers.find(t => parseFloat(deficit) >= t.min)?.name || 'None';
                     hover.push(
                         `<b>${f.properties.NAME} County</b><br>` +
                         `<b>Region ${r}</b><br>` +
-                        `Deficit: ${deficit}%<br>` +
+                        (isSeverity ? `<b>Severity: ${deficit}% (${rTierName})</b><br>` : `Deficit: ${deficit}%<br>`) +
                         `Pop: ${(rPop[r] || 0).toLocaleString()}<br>` +
                         `Demand: ${(rDemand[r] || 0).toLocaleString()} ac-ft<br>` +
                         `Supply: ${(rSupply[r] || 0).toLocaleString()} ac-ft<br>` +
@@ -640,7 +661,9 @@
                     );
                 });
 
-                const rTicks = buildColorbarTicks(maxLogR, 5);
+                const rTicks = isSeverity
+                    ? { vals: [0, 5, 17.5, 37.5, 75], text: ['None', 'Low', 'Moderate', 'Severe', 'Critical'] }
+                    : buildColorbarTicks(maxLogR, 5);
                 traces.push({
                     type: 'choroplethmapbox', geojson: txGeojson,
                     locations: locs, z: zVals, text: hover, hoverinfo: 'text',
@@ -680,11 +703,15 @@
                 // --- Counties: quantitative metric ---
                 // Compute statewide max for consistent scale
                 let maxLogAll = 0;
-                features.forEach(f => {
-                    const raw = (metricAgg[f.properties.NAME.toUpperCase()] || {}).total || 0;
-                    maxLogAll = Math.max(maxLogAll, Math.log10(raw + 1));
-                });
-                maxLogAll = maxLogAll || 1;
+                if (isSeverity) {
+                    maxLogAll = 100; // Fixed 0-100% scale
+                } else {
+                    features.forEach(f => {
+                        const raw = (metricAgg[f.properties.NAME.toUpperCase()] || {}).total || 0;
+                        maxLogAll = Math.max(maxLogAll, Math.log10(raw + 1));
+                    });
+                    maxLogAll = maxLogAll || 1;
+                }
 
                 const locs = [], zVals = [], hover = [];
                 features.forEach(f => {
@@ -692,14 +719,18 @@
                     const r = countyToRegion[name] || 'N/A';
                     if (region && r !== region) return; // skip grayed-out
                     locs.push(f.id);
-                    zVals.push(Math.log10(((metricAgg[name] || {}).total || 0) + 1));
+                    const raw = (metricAgg[name] || {}).total || 0;
+                    zVals.push(isSeverity ? raw : Math.log10(raw + 1));
                     const demand = (demandAgg[name] || {}).total || 0;
                     const needs = (needsAgg[name] || {}).total || 0;
                     const pop = (popAgg[name] || {}).total || 0;
                     const supply = (supplyAgg[name] || {}).total || 0;
+                    const sevPct = demand > 0 ? (needs / demand * 100).toFixed(1) : '0.0';
+                    const tierObj = getDeficitTier(needs, demand);
                     hover.push(
                         `<b>${f.properties.NAME} County</b><br>` +
                         `Region: ${r}<br>` +
+                        (isSeverity ? `<b>Severity: ${sevPct}% (${tierObj.name})</b><br>` : '') +
                         `Population: ${pop.toLocaleString()}<br>` +
                         `Demand: ${demand.toLocaleString()} ac-ft<br>` +
                         `Supply: ${supply.toLocaleString()} ac-ft<br>` +
@@ -707,7 +738,9 @@
                     );
                 });
 
-                const cTicks = buildColorbarTicks(maxLogAll, 5);
+                const cTicks = isSeverity
+                    ? { vals: [0, 5, 17.5, 37.5, 75], text: ['None', 'Low', 'Moderate', 'Severe', 'Critical'] }
+                    : buildColorbarTicks(maxLogAll, 5);
                 traces.push({
                     type: 'choroplethmapbox', geojson: txGeojson,
                     locations: locs, z: zVals, text: hover, hoverinfo: 'text',
@@ -824,9 +857,11 @@
                 modeBarButtonsToRemove: ['select2d', 'lasso2d']
             });
 
+            const metricTitles = { severity: 'Water Severity', needs: 'Water Needs', demand: 'Water Demand', population: 'Population', supply: 'Existing Supply' };
+            const metricTitle = metricTitles[metric] || 'Counties';
             document.getElementById('countyMapTitle').textContent = mapViewMode === 'regions'
-                ? (region ? `Region ${region} — Planning Regions` : 'All Texas — Planning Regions')
-                : (region ? `Region ${region} — Counties View` : 'All Texas — Counties View');
+                ? (region ? `Region ${region} — ${metricTitle} by Region` : `All Texas — ${metricTitle} by Region`)
+                : (region ? `Region ${region} — ${metricTitle}` : `All Texas — ${metricTitle}`);
         }
 
         // --- Legend builder ---
