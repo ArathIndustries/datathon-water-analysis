@@ -63,6 +63,7 @@ python -m http.server 8000 -d public
 ```
 datathon-water-analysis/
 ├── README.md
+├── CURRENT_STATUS.md                        # Project audit and status tracking
 ├── vercel.json                              # Vercel config (serves public/)
 ├── .gitignore
 │
@@ -75,7 +76,8 @@ datathon-water-analysis/
 │   └── generate_master_dataset.py           # Master county dataset generator
 │
 └── public/
-    ├── index.html                           # Entire dashboard (HTML + CSS + JS)
+    ├── index.html                           # Main dashboard (HTML + CSS + JS)
+    ├── data.html                            # Dataset viewer with source docs
     └── data/
         ├── demands.csv                      # TWDB demand projections (3,341 rows)
         ├── existing.csv                     # TWDB existing supply (6,415 rows)

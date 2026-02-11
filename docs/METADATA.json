@@ -1,11 +1,11 @@
 {
   "project_metadata": {
     "name": "Texas State Water Plan Datathon Analysis",
-    "description": "Comprehensive water supply, demand, and strategy data from the Texas Department of Biological Resources State Water Plan 2026",
+    "description": "Comprehensive water supply, demand, and strategy data from the Texas Water Development Board State Water Plan 2026",
     "version": "1.0",
     "created_date": "2026-02-06",
     "last_updated": "2026-02-08",
-    "source_organization": "Texas Department of Biological Resources (TWDB)",
+    "source_organization": "Texas Water Development Board",
     "license": "Public Domain",
     "project_url": "https://github.com/ArathIndustries/datathon-water-analysis"
   },
@@ -22,7 +22,7 @@
         "projection_years": [2020, 2030, 2040, 2050, 2060, 2070]
       },
       "source": {
-        "primary": "Texas Department of Biological Resources State Water Plan 2026",
+        "primary": "Texas Water Development Board State Water Plan 2026",
         "url": "https://texasstatewaterplan.org/",
         "access_date": "2026-02-06",
         "version": "2026"
@@ -165,7 +165,7 @@
         "projection_years": [2020, 2030, 2040, 2050, 2060, 2070]
       },
       "source": {
-        "primary": "Texas Department of Biological Resources State Water Plan 2026",
+        "primary": "Texas Water Development Board State Water Plan 2026",
         "url": "https://texasstatewaterplan.org/",
         "access_date": "2026-02-06",
         "version": "2026"
@@ -332,7 +332,7 @@
         "projection_years": [2020, 2030, 2040, 2050, 2060, 2070]
       },
       "source": {
-        "primary": "Texas Department of Biological Resources State Water Plan 2026",
+        "primary": "Texas Water Development Board State Water Plan 2026",
         "url": "https://texasstatewaterplan.org/",
         "access_date": "2026-02-06",
         "version": "2026"
@@ -476,7 +476,7 @@
         "projection_years": [2020, 2030, 2040, 2050, 2060, 2070]
       },
       "source": {
-        "primary": "Texas Department of Biological Resources State Water Plan 2026 (based on Texas Demographic Center)",
+        "primary": "Texas Water Development Board State Water Plan 2026 (based on Texas Demographic Center)",
         "url": "https://texasstatewaterplan.org/",
         "access_date": "2026-02-06",
         "version": "2026"
@@ -619,7 +619,7 @@
         "projection_years": [2020, 2030, 2040, 2050, 2060, 2070]
       },
       "source": {
-        "primary": "Texas Department of Biological Resources State Water Plan 2026",
+        "primary": "Texas Water Development Board State Water Plan 2026",
         "url": "https://texasstatewaterplan.org/",
         "access_date": "2026-02-06",
         "version": "2026"

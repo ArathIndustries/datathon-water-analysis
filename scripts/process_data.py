@@ -3,20 +3,33 @@ Texas Water Crisis Analysis — Data Processing Pipeline
 =======================================================
 TXST Datathon 2026 — Love Data Week
 
-This script replicates the data transformations performed by the interactive
-dashboard (index.html). It reads the raw TWDB and EPA datasets, aggregates
-them to county level, computes derived metrics, and exports the final
-manipulated datasets used by each chart.
+This script demonstrates the data manipulation and transformation process
+behind the interactive dashboard. It reads the raw TWDB and EPA datasets,
+aggregates them to county level, computes derived metrics, and exports the
+manipulated datasets as reproducible CSV outputs.
+
+The datathon competition emphasizes the exploration and manipulation of data.
+This pipeline makes the transformations explicit and reproducible — the
+dashboard (index.html) performs the same computations client-side in JavaScript,
+but this script lets reviewers inspect the intermediate results as flat files.
+
+Note: Some outputs (sankey_flows.csv, regression_data.csv) correspond to chart
+types that were explored during development but later removed from the final
+dashboard. We kept these analyses in the pipeline because they represent
+additional data manipulation work, even though the final dashboard chose not
+to visualize them — they were re-visualizing patterns already captured by the
+Risk Matrix, Pareto, and Scatter charts.
 
 Usage:
     python scripts/process_data.py [--year 2050] [--region ""]
 
 Output (written to public/data/processed/):
     - county_water_summary.csv    : Per-county aggregated water + facility data
-    - sankey_flows.csv            : Sector-level flow data for the Sankey diagram
+    - sankey_flows.csv            : Sector-level flow data (explored, not in final dashboard)
     - risk_matrix.csv             : County counts by (stress tier, facility bin)
     - pareto_ranked.csv           : Counties ranked by deficit with cumulative %
-    - regression_data.csv         : Facility count vs deficit for R² analysis
+    - regression_data.csv         : Facility count vs deficit for R² analysis (explored, not in final dashboard)
+    - regression_stats.txt        : OLS regression coefficients and R² (explored, not in final dashboard)
     - distribution_comparison.csv : Deficit % for industrial vs non-industrial counties
 
 Data Sources:
@@ -249,11 +262,15 @@ def build_county_summary(data, year, region):
 
 # ============================================================================
 # STEP 6: GENERATE SANKEY FLOW DATA
+# Note: The Sankey diagram was explored during development but removed from the
+# final dashboard. It visualized sector-level supply/demand flows, but we found
+# this duplicated insights already shown by the Risk Matrix and Pareto charts.
+# The data manipulation is preserved here as part of the datathon deliverable.
 # ============================================================================
 
 def build_sankey_flows(data, year, region):
     """
-    Build sector-level flow data for the Sankey diagram.
+    Build sector-level flow data for a Sankey diagram.
 
     The Sankey shows:  Existing Supply -> [Sectors] -> Demand Met / Water Deficit
 
@@ -266,6 +283,9 @@ def build_sankey_flows(data, year, region):
         Supply -> Sector  (volume = supply)
         Sector -> Met     (volume = met)
         Sector -> Deficit (volume = unmet)
+
+    Note: This chart was explored but not included in the final dashboard.
+    The output is retained to demonstrate the data manipulation process.
     """
     print(f"\nBuilding Sankey flows for year={year}...")
 
@@ -415,11 +435,15 @@ def build_pareto_ranking(county_summary):
 
 # ============================================================================
 # STEP 9: GENERATE REGRESSION DATA
+# Note: The R² regression chart was explored during development but removed
+# from the final dashboard. The scatter plot with severity tier bands provides
+# a more intuitive view of the same facility-vs-deficit relationship. The OLS
+# computation is preserved here to demonstrate statistical data manipulation.
 # ============================================================================
 
 def build_regression_data(county_summary):
     """
-    Prepare data for the R² regression analysis: X=facilities, Y=deficit.
+    Prepare data for R² regression analysis: X=facilities, Y=deficit.
 
     Also computes the OLS regression coefficients and R² in-script
     so the output CSV includes the predicted value and residual for
@@ -429,6 +453,9 @@ def build_regression_data(county_summary):
         m = (n * SUM(xy) - SUM(x) * SUM(y)) / (n * SUM(x²) - SUM(x)²)
         b = (SUM(y) - m * SUM(x)) / n
         R² = 1 - SS_res / SS_tot
+
+    Note: This chart was explored but not included in the final dashboard.
+    The scatter plot with severity tiers conveys this relationship more clearly.
     """
     print("\nBuilding regression data...")
 
