@@ -54,6 +54,7 @@ python -m http.server 8000 -d public
 - **Risk Table** — Top 25 counties ranked by unmet need with severity coloring
 - **Global filters** — Region (A-P) and Year (2020-2070) update all charts simultaneously
 - **Export** — CSV download and Plotly built-in PNG export on all charts
+- **[Data Viewer](public/data.html)** — Browse all source and processed datasets with column definitions, source attribution, search, sort, and CSV download
 
 ---
 
@@ -134,3 +135,7 @@ See [docs/METHODOLOGY.md](docs/METHODOLOGY.md) for detailed chart methodology do
 ## Dataset Metadata
 
 See [docs/METADATA.json](docs/METADATA.json) for machine-readable field-level documentation of all datasets.
+
+## Data Viewer
+
+The dashboard includes an interactive [Data Viewer](public/data.html) page where you can browse all raw and processed datasets. Each dataset includes source attribution (TWDB / EPA FRS), column definitions, and download links. The processed **Master County Dataset** combines all sources into a single county-level analytical file.

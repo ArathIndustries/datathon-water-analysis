@@ -150,12 +150,33 @@ All charts respond to two global filters:
 
 When a region is selected, non-selected counties are grayed out on the map but remain visible for geographic context.
 
-## Map Visualization
+### 5. Severity Map — "Where Is the Crisis?"
 
-The choropleth map uses **log-scale normalization** for the color gradient:
+**Framework:** Choropleth mapping with severity tier classification
 
-```
-display_value = log10(raw_value + 1)
-```
+**Purpose:** Provide an at-a-glance geographic view of water stress across all 254 Texas counties, with facility overlays to show where industrial demand concentrates.
 
-This prevents a small number of high-value counties (e.g., Harris County) from making all other counties appear uniformly low. The legend ticks are converted back to raw values for readability.
+**Methodology:**
+1. Color each county polygon by the selected metric (Water Needs, Demand, Population, or Supply)
+2. Apply **log-scale normalization** to the color gradient:
+   ```
+   display_value = log10(raw_value + 1)
+   ```
+   This prevents a small number of high-value counties (e.g., Harris County) from making all other counties appear uniformly low. The legend ticks are converted back to raw values for readability.
+3. Overlay data center markers (blue) and semiconductor fab markers (red) at their GPS coordinates
+4. Support county-level and region-level toggle — region view aggregates all county values within each TWDB planning region
+5. When a region filter is active, non-selected counties are grayed out but remain visible for geographic context
+
+**Interpretation:** Deep red counties on the "Water Needs" layer have the largest absolute water deficits. Facility markers clustered in red zones indicate industrial buildout in water-stressed areas.
+
+---
+
+## Data Viewer
+
+The [data viewer page](../public/data.html) provides interactive access to all source and processed datasets. Each dataset card includes:
+- **Source attribution** — TWDB or EPA FRS with direct links
+- **Column definitions** — key field names and their meaning
+- **Row counts** — loaded dynamically from the CSV
+- **Download links** — direct CSV download for each dataset
+
+The processed data section includes the **Master County Dataset** (`data/processed/master_county_dataset.csv`), which aggregates all TWDB entity-level data to county level, joins EPA facility counts, and computes severity tiers. This is the primary analytical dataset behind the dashboard charts.
