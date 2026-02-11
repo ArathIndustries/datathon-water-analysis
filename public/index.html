@@ -296,7 +296,7 @@
                 <option value="supply">Existing Supply</option>
             </select>
 
-            <button onclick="downloadData()">Export CSV</button>
+            <a href="data.html" style="background:#667eea;color:white;padding:8px 16px;border-radius:5px;text-decoration:none;font-size:0.95em;font-weight:500;">View Datasets</a>
         </div>
 
         <div class="map-section">
@@ -1311,23 +1311,6 @@
                 ? `Top Counties at Risk — Region ${region} — Water & Industrial Impact`
                 : 'Top Counties at Risk — Water & Industrial Impact')
                 + ' <span class="info-tip" data-tip="Top 25 counties by unmet water need. Severity = (Needs ÷ Demand) × 100%. Tiers: Critical ≥50%, Severe 25-50%, Moderate 10-25%, Low <10%.">i</span>';
-        }
-
-        function downloadData() {
-            const year = document.getElementById('yearSelect').value || '2050';
-            const region = document.getElementById('regionSelect').value;
-            const yearCol = `D${year}`;
-            const q = v => `"${String(v || '').replace(/"/g, '""')}"`;
-            let csv = 'EntityName,WugType,Region,County,' + yearCol + '\n';
-            allData.demands.forEach(d => {
-                if (region && d.WugRegion !== region) return;
-                csv += `${q(d.EntityName)},${q(d.WugType)},${q(d.WugRegion)},${q(d.WugCounty)},${d[yearCol] || 0}\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const a = document.createElement('a');
-            a.href = window.URL.createObjectURL(blob);
-            a.download = `texas-water-data-${region || 'all'}-${year}.csv`;
-            a.click();
         }
 
         window.addEventListener('load', initDashboard);
