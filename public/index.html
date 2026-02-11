@@ -196,6 +196,37 @@
             footer { padding: 12px; font-size: 0.9em; }
         }
 
+        /* Info tooltips */
+        .info-tip {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 16px; height: 16px;
+            background: #e0e0e0; color: #888;
+            border-radius: 50%;
+            font-size: 10px; cursor: help;
+            position: relative;
+            margin-left: 6px; vertical-align: middle;
+            font-style: italic; font-family: Georgia, serif;
+            flex-shrink: 0;
+        }
+        .info-tip:hover::after {
+            content: attr(data-tip);
+            position: absolute;
+            right: 0; top: 22px;
+            background: #333; color: #fff;
+            padding: 8px 12px; border-radius: 6px;
+            font-size: 12px; font-weight: normal;
+            font-style: normal;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            white-space: normal; width: 260px;
+            z-index: 1000; line-height: 1.4;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            pointer-events: none;
+        }
+        .map-subtitle {
+            font-size: 0.82em; color: #888;
+            margin-top: 2px; font-style: italic;
+        }
+
         /* Data center overlay toggle */
         .map-overlay-toggle {
             display: flex;
@@ -224,15 +255,15 @@
         </header>
 
         <div class="insights-grid">
-            <div class="insight-card">
+            <div class="insight-card" title="Total unmet water needs (Demand − Supply, where positive) summed across all counties for the selected year and region">
                 <div class="insight-value" id="insightDeficit" style="color:#e31a1c;">--</div>
                 <div class="insight-label" id="insightDeficitLabel">Statewide Water Deficit (acre-ft)</div>
             </div>
-            <div class="insight-card">
+            <div class="insight-card" title="Number of counties where projected water demand exceeds existing supply capacity">
                 <div class="insight-value" id="insightCounties" style="color:#e65100;">--</div>
                 <div class="insight-label" id="insightCountiesLabel">Counties with Unmet Needs</div>
             </div>
-            <div class="insight-card">
+            <div class="insight-card" title="Total population living in counties that have any water deficit for the selected year">
                 <div class="insight-value" id="insightPopulation" style="color:#54278f;">--</div>
                 <div class="insight-label" id="insightPopLabel">People in At-Risk Counties</div>
             </div>
@@ -265,7 +296,10 @@
 
         <div class="map-section">
             <div class="map-header">
-                <span class="map-title" id="countyMapTitle">All Texas — 254 Counties</span>
+                <div>
+                    <span class="map-title" id="countyMapTitle">All Texas — 254 Counties</span>
+                    <div class="map-subtitle" id="mapSubtitle"></div>
+                </div>
                 <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
                     <div class="map-toggle">
                         <button class="active" data-mode="counties" onclick="toggleMapView('counties')">Counties</button>
@@ -290,26 +324,26 @@
 
         <!-- The Overlap: Industrial facilities in water-stressed areas -->
         <div class="insights-grid" style="grid-template-columns: repeat(4, 1fr);">
-            <div class="insight-card">
+            <div class="insight-card" title="Data centers located in counties where Severity ≥ 10% (Moderate tier or higher). Severity = Needs ÷ Demand × 100">
                 <div class="insight-value" id="overlapDcDeficit" style="color:#00838f;">--</div>
                 <div class="insight-label">Data Centers in Water-Stressed Counties (10%+ deficit)</div>
             </div>
-            <div class="insight-card">
+            <div class="insight-card" title="Semiconductor fabs located in counties where Severity ≥ 10% (Moderate tier or higher)">
                 <div class="insight-value" id="overlapFabDeficit" style="color:#e65100;">--</div>
                 <div class="insight-label">Semi Fabs in Water-Stressed Counties (10%+ deficit)</div>
             </div>
-            <div class="insight-card">
+            <div class="insight-card" title="Total unmet water need (acre-feet) in counties that have both ≥10% severity and at least one industrial facility">
                 <div class="insight-value" id="overlapDeficitTotal" style="color:#b71c1c;">--</div>
                 <div class="insight-label">Combined Deficit in Stressed Industrial Counties (ac-ft)</div>
             </div>
-            <div class="insight-card">
+            <div class="insight-card" title="Population living in counties with both ≥10% severity and at least one data center or semiconductor fab">
                 <div class="insight-value" id="overlapPopAtRisk" style="color:#4a148c;">--</div>
                 <div class="insight-label">People in Stressed Industrial Counties</div>
             </div>
         </div>
 
         <div class="chart-box" style="margin-bottom: 12px;">
-            <div class="chart-title">Risk Matrix — Water Stress vs. Industrial Concentration</div>
+            <div class="chart-title">Risk Matrix — Water Stress vs. Industrial Concentration <span class="info-tip" data-tip="Counties binned by water stress tier (Y-axis) vs. industrial facility count (X-axis). Stress tier = Needs ÷ Demand. Top-right = counties with both severe water stress and high facility concentration.">i</span></div>
             <div class="chart" id="riskMatrixChart"></div>
         </div>
 
@@ -320,11 +354,11 @@
 
         <div class="charts-grid">
             <div class="chart-box">
-                <div class="chart-title" id="regressionTitle">Water Stress vs. Industrial Presence</div>
+                <div class="chart-title" id="regressionTitle">Water Stress vs. Industrial Presence <span class="info-tip" data-tip="Each dot is one county. Y-axis = Severity % (Needs ÷ Demand × 100). X-axis = Data Centers + Semiconductor Fabs. Colored bands mark severity tiers: Low (<10%), Moderate (10-25%), Severe (25-50%), Critical (≥50%).">i</span></div>
                 <div class="chart" id="regressionChart"></div>
             </div>
             <div class="chart-box">
-                <div class="chart-title">Severity Distribution — Industrial vs. Non-Industrial Counties</div>
+                <div class="chart-title">Severity Distribution — Industrial vs. Non-Industrial Counties <span class="info-tip" data-tip="Compares severity scores (Needs ÷ Demand × 100%) between counties with industrial facilities and those without. Box shows median and quartiles; dots are individual counties. Mean values shown below.">i</span></div>
                 <div class="chart" id="distributionChart"></div>
             </div>
         </div>
@@ -862,6 +896,15 @@
             document.getElementById('countyMapTitle').textContent = mapViewMode === 'regions'
                 ? (region ? `Region ${region} — ${metricTitle} by Region` : `All Texas — ${metricTitle} by Region`)
                 : (region ? `Region ${region} — ${metricTitle}` : `All Texas — ${metricTitle}`);
+
+            const metricDescriptions = {
+                severity: 'Percentage of water demand that cannot be met by existing supply — Severity = (Needs \u00F7 Demand) \u00D7 100',
+                needs: 'Total unmet water demand in acre-feet per year (where demand exceeds existing supply)',
+                demand: 'Total projected water demand across all sectors in acre-feet per year',
+                population: 'Projected population count from TWDB State Water Plan 2026',
+                supply: 'Water available from existing sources in acre-feet per year'
+            };
+            document.getElementById('mapSubtitle').textContent = metricDescriptions[metric] || '';
         }
 
         // --- Legend builder ---
@@ -1099,9 +1142,10 @@
                 annotations: paretoAnnotations
             }, chartConfig);
 
-            document.getElementById('paretoTitle').textContent = totalFacilities > 0
+            document.getElementById('paretoTitle').innerHTML = (totalFacilities > 0
                 ? `Pareto Analysis — ${idx80 >= 0 ? idx80 + 1 : '?'} counties hold 80% of deficit`
-                : 'Pareto Analysis — Concentration of Water Deficit';
+                : 'Pareto Analysis — Concentration of Water Deficit')
+                + ' <span class="info-tip" data-tip="Counties ranked by deficit size. Shows whether a small number of counties drive most of the statewide shortfall (Pareto 80/20 principle). Dashed line tracks cumulative industrial facility concentration.">i</span>';
 
             // --- SCATTER: Water Stress vs Industrial Presence ---
             const scatterData = countyData.filter(c => c.demand > 0 && (c.needs > 0 || c.total > 0));
@@ -1254,9 +1298,10 @@
             });
             html += '</table>';
             document.getElementById('dataTable').innerHTML = html;
-            document.getElementById('riskTableTitle').textContent = region
+            document.getElementById('riskTableTitle').innerHTML = (region
                 ? `Top Counties at Risk — Region ${region} — Water & Industrial Impact`
-                : 'Top Counties at Risk — Water & Industrial Impact';
+                : 'Top Counties at Risk — Water & Industrial Impact')
+                + ' <span class="info-tip" data-tip="Top 25 counties by unmet water need. Severity = (Needs ÷ Demand) × 100%. Tiers: Critical ≥50%, Severe 25-50%, Moderate 10-25%, Low <10%.">i</span>';
         }
 
         function downloadData() {
